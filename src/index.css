@@ -11,7 +11,7 @@
 
   html, body, #root {
     height: 100%;
-    background-color: #16110c;
+    background-color: #0f0a06;
     color: #f5ecd9;
     font-family: 'Inter', system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
@@ -27,6 +27,35 @@
 /* Isolate Leaflet's internal z-index stack from our UI overlays */
 .leaflet-container {
   z-index: 0;
+  background: #1a1209;
+}
+
+/* Custom tooltip — warm dark to match app palette */
+.jol-tooltip.leaflet-tooltip {
+  background: rgba(31, 24, 16, 0.97);
+  border: 1px solid rgba(58, 44, 27, 0.9);
+  color: #f5ecd9;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  border-radius: 8px;
+  padding: 5px 10px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  white-space: nowrap;
+}
+.jol-tooltip.leaflet-tooltip::before {
+  border-top-color: rgba(58, 44, 27, 0.9);
+}
+
+/* Attribution control — warm dark style */
+.leaflet-control-attribution {
+  background: rgba(22, 17, 12, 0.82) !important;
+  color: #a08a72 !important;
+  font-size: 10px !important;
+  border-radius: 6px 0 0 0 !important;
+}
+.leaflet-control-attribution a {
+  color: #ff7a3d !important;
 }
 
 @layer utilities {

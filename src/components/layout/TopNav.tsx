@@ -11,19 +11,17 @@ const USER_LINKS = [
 
 const TopNav: React.FC = () => (
   <header
-    className="sticky top-0 z-[1000] w-full"
+    className="sticky top-0 z-[1000] w-full bg-white"
     style={{
-      background: 'rgba(22,17,12,0.92)',
-      backdropFilter: 'blur(20px)',
-      WebkitBackdropFilter: 'blur(20px)',
-      borderBottom: '1px solid rgba(58,44,27,0.5)',
+      borderBottom: '1px solid #e5e7eb',
+      boxShadow: '0 1px 12px rgba(0,0,0,0.08)',
     }}
   >
     <div className="max-w-7xl mx-auto px-6 h-14 flex items-center justify-between gap-6">
       {/* Logo */}
       <Link to="/" className="flex items-center gap-2 shrink-0">
         <div
-          className="w-7 h-7 rounded-lg flex items-center justify-center text-[#1a0e08] font-black"
+          className="w-7 h-7 rounded-lg flex items-center justify-center text-white font-black"
           style={{
             background: '#ff7a3d',
             fontFamily: '"Bricolage Grotesque", system-ui',
@@ -40,7 +38,7 @@ const TopNav: React.FC = () => (
             letterSpacing: '-0.03em',
           }}
         >
-          <span style={{ color: '#f5ecd9' }}>J</span>
+          <span style={{ color: '#111827' }}>J</span>
           <span style={{ color: '#ff7a3d' }}>ol</span>
         </span>
       </Link>
@@ -56,8 +54,8 @@ const TopNav: React.FC = () => (
               `flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-sm font-medium
                transition-all duration-200
                ${isActive
-                 ? 'bg-nz-accent/15 text-nz-accent'
-                 : 'text-nz-muted hover:text-nz-text hover:bg-white/5'
+                 ? 'bg-orange-50 text-nz-accent'
+                 : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
                }`
             }
           >
@@ -75,8 +73,8 @@ const TopNav: React.FC = () => (
       <Link
         to="/owner/dashboard"
         className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-sm font-medium shrink-0
-                   text-nz-muted hover:text-nz-text border border-nz-border/60
-                   hover:border-nz-border transition-all duration-200"
+                   text-gray-500 hover:text-gray-900 border border-gray-200
+                   hover:border-gray-400 transition-all duration-200"
       >
         <User size={15} />
         <span>Owner portal</span>

@@ -70,7 +70,7 @@ const BottomSheet: React.FC<IBottomSheetProps> = ({
           transition-[height] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)]
           overflow-hidden
         `}
-        style={{ height: SNAP_HEIGHTS[snap], background: 'rgba(31,24,16,0.95)' }}
+        style={{ height: SNAP_HEIGHTS[snap], background: 'rgba(30,22,16,0.95)' }}
       >
         {/* Drag handle */}
         <div

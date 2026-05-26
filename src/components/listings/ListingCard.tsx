@@ -67,7 +67,7 @@ export const FeaturedCard: React.FC<IListingCardProps> = ({ listing }) => {
       {/* Bottom gradient */}
       <div
         className="absolute inset-0"
-        style={{ background: 'linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.9) 100%)' }}
+        style={{ background: 'linear-gradient(180deg, rgba(22,17,12,0) 20%, rgba(16,10,5,0.93) 100%)' }}
       />
 
       {/* TypeMark top-left */}
@@ -78,7 +78,7 @@ export const FeaturedCard: React.FC<IListingCardProps> = ({ listing }) => {
       {/* Heart save button top-right */}
       <button
         onClick={handleSave}
-        className="absolute top-3 right-3 w-9 h-9 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center transition-all duration-200 hover:bg-black/60"
+        className="absolute top-3 right-3 w-9 h-9 rounded-full bg-nz-bg/60 backdrop-blur-sm border border-nz-border/40 flex items-center justify-center transition-all duration-200 hover:bg-nz-bg/80"
         aria-label={saved ? 'Remove from saved' : 'Save'}
       >
         <Heart
@@ -149,7 +149,7 @@ export const TileCard: React.FC<IListingCardProps> = ({ listing }) => {
         </div>
         <button
           onClick={handleSave}
-          className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center"
+          className="absolute top-2 right-2 w-7 h-7 rounded-full bg-nz-bg/60 backdrop-blur-sm border border-nz-border/40 flex items-center justify-center"
           aria-label={saved ? 'Remove from saved' : 'Save'}
         >
           <Heart size={12} className={saved ? 'text-nz-accent fill-nz-accent' : 'text-white'} />

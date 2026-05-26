@@ -5,13 +5,13 @@ export default {
     extend: {
       colors: {
         nz: {
-          bg: '#16110c',
-          surface: '#1f1810',
-          elevated: '#2a2014',
-          border: '#3a2c1b',
+          bg: '#0f0a06',
+          surface: '#1e1610',
+          elevated: '#2e2116',
+          border: '#4e3a26',
           text: '#f5ecd9',
-          muted: '#a08a72',
-          subtle: '#6e5d4a',
+          muted: '#b09878',
+          subtle: '#7a6652',
           accent: '#ff7a3d',
           'accent-soft': 'rgba(255,122,61,0.16)',
           'accent-text': '#ffb88a',

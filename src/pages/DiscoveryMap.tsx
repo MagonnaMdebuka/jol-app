@@ -48,7 +48,7 @@ const DiscoveryMap: React.FC = () => {
         <div
           className="flex items-center gap-2.5 rounded-2xl px-3.5 py-2.5 shadow-[0_4px_24px_rgba(0,0,0,0.5)]"
           style={{
-            background: 'rgba(31,24,16,0.85)',
+            background: 'rgba(30,22,16,0.9)',
             backdropFilter: 'blur(20px)',
             border: '1px solid rgba(245,236,217,0.08)',
           }}
