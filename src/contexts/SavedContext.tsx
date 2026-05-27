@@ -7,7 +7,7 @@ import React, {
   type ReactNode,
 } from 'react';
 
-const STORAGE_KEY = 'nz-saved';
+const STORAGE_KEY = 'jol-saved';
 
 interface ISavedContextValue {
   savedIds: Set<string>;
