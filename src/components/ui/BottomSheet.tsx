@@ -83,7 +83,7 @@ const BottomSheet: React.FC<IBottomSheetProps> = ({
           <div className="w-12 h-1.5 rounded-full bg-white/15" />
         </div>
 
-        <div className="overflow-y-auto h-full pb-28 px-5">
+        <div className="overflow-y-auto h-full pb-6 px-5">
           {children}
         </div>
       </div>

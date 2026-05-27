@@ -15,7 +15,7 @@ const BottomNav: React.FC = () => {
 
   return (
     <nav
-      className="absolute bottom-0 left-0 right-0 z-30 safe-area-bottom md:hidden"
+      className="z-30 md:hidden"
       style={{
         background: 'rgba(31,24,16,0.92)',
         backdropFilter: 'blur(20px)',

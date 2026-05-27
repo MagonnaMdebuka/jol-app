@@ -83,8 +83,8 @@ const DiscoveryMap: React.FC = () => {
 
       {/* Vibe filter rail — bottom */}
       <div
-        className="absolute bottom-0 left-0 right-0 z-[1000] px-4 pb-4 pt-6 pointer-events-none"
-        style={{ background: 'linear-gradient(to top, rgba(22,17,12,0.85) 0%, transparent 100%)' }}
+        className="absolute bottom-0 left-0 right-0 z-[1000] px-4 pb-3 pt-8 pointer-events-none"
+        style={{ background: 'linear-gradient(to top, rgba(22,17,12,0.9) 0%, transparent 100%)' }}
       >
         <MapFilters />
       </div>

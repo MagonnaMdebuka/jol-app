@@ -6,10 +6,10 @@ import BottomNav from './BottomNav';
 const AppShell: React.FC = () => (
   <div className="flex flex-col h-screen bg-nz-bg">
     <TopNav />
-    <main className="flex-1 overflow-hidden relative">
+    <main className="flex-1 overflow-hidden relative min-h-0">
       <Outlet />
-      <BottomNav />
     </main>
+    <BottomNav />
   </div>
 );
 
