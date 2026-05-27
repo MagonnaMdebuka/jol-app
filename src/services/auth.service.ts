@@ -12,7 +12,7 @@ export const signUpWithEmail = async (
   const { error } = await supabase.auth.signUp({
     email,
     password,
-    options: { data: { name, role: 'venue_owner' } },
+    options: { data: { display_name: name, role: 'owner' } },
   });
   return { error: error?.message ?? null };
 };
