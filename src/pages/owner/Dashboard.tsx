@@ -24,7 +24,7 @@ const MonoLabel: React.FC<{ children: React.ReactNode }> = ({ children }) => (
 );
 
 const Dashboard: React.FC = () => {
-  const { authUser } = useAuth();
+  const { authUser, user } = useAuth();
   const { toast } = useToast();
   const [listings, setListings] = useState<IListing[]>([]);
   const [venues, setVenues] = useState<IVenue[]>([]);
@@ -44,7 +44,11 @@ const Dashboard: React.FC = () => {
 
   const handleDelete = useCallback(
     async (id: string) => {
-      await softDeleteListing(id);
+      const { error } = await softDeleteListing(id);
+      if (error) {
+        toast('Failed to deactivate listing', 'error');
+        return;
+      }
       setListings((prev) => prev.filter((l) => l.id !== id));
       toast('Listing deactivated', 'info');
     },
@@ -77,7 +81,7 @@ const Dashboard: React.FC = () => {
             fontSize: '38px',
           }}
         >
-          Howzit,{'\n'}owner.
+          Howzit,{'\n'}{user?.display_name ?? 'owner'}.
         </h1>
       </div>
 

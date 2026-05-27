@@ -19,10 +19,10 @@ const OwnerNav: React.FC = () => {
 
   return (
     <header
-      className="sticky top-0 z-40 bg-white"
+      className="sticky top-0 z-40 bg-nz-bg/95 backdrop-blur-md"
       style={{
-        borderBottom: '1px solid #e5e7eb',
-        boxShadow: '0 1px 12px rgba(0,0,0,0.08)',
+        borderBottom: '1px solid rgba(58,44,27,0.8)',
+        boxShadow: '0 1px 12px rgba(0,0,0,0.4)',
       }}
     >
       <div className="max-w-5xl mx-auto px-6 lg:px-8 h-14 flex items-center justify-between gap-6">
@@ -31,7 +31,7 @@ const OwnerNav: React.FC = () => {
           <span
             style={{ fontFamily: '"Bricolage Grotesque", system-ui', fontWeight: 900, fontSize: '18px', letterSpacing: '-0.03em' }}
           >
-            <span style={{ color: '#111827' }}>J</span>
+            <span style={{ color: '#f5ecd9' }}>J</span>
             <span style={{ color: '#ff7a3d' }}>ol</span>
           </span>
           <span
@@ -50,8 +50,8 @@ const OwnerNav: React.FC = () => {
               className={({ isActive }) =>
                 `flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-sm font-medium transition-all duration-200
                 ${isActive
-                  ? 'bg-orange-50 text-nz-accent border border-orange-100'
-                  : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
+                  ? 'bg-nz-accent/10 text-nz-accent border border-nz-accent/30'
+                  : 'text-nz-muted hover:text-nz-text hover:bg-nz-elevated rounded-xl'
                 }`
               }
             >
@@ -63,7 +63,7 @@ const OwnerNav: React.FC = () => {
 
         <button
           onClick={handleLogout}
-          className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-sm font-medium text-gray-500 hover:text-red-500 hover:bg-red-50 transition-all duration-200"
+          className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-sm font-medium text-nz-muted hover:text-red-400 hover:bg-red-500/10 border border-transparent hover:border-red-500/20 transition-all duration-200"
           type="button"
         >
           <LogOut size={14} />
