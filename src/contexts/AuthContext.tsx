@@ -40,6 +40,19 @@ const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     await authSignOut();
   }, []);
 
+  // Defined before useEffect so it can be referenced in the effect closure
+  const fetchUserProfile = useCallback(async (uid: string): Promise<void> => {
+    if (!supabase) return;
+    // Queries public.profiles (created by handle_new_user trigger on sign-up)
+    const { data } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', uid)
+      .single();
+    setUser(data as IUser | null);
+    setLoading(false);
+  }, []);
+
   useEffect(() => {
     if (!isSupabaseEnabled() || !supabase) {
       setLoading(false);
@@ -68,19 +81,7 @@ const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     });
 
     return () => listener.subscription.unsubscribe();
-  }, []);
-
-  const fetchUserProfile = async (uid: string): Promise<void> => {
-    if (!supabase) return;
-    // Queries public.profiles (created by handle_new_user trigger on sign-up)
-    const { data } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', uid)
-      .single();
-    setUser(data as IUser | null);
-    setLoading(false);
-  };
+  }, [fetchUserProfile]);
 
   return (
     <AuthContext.Provider
