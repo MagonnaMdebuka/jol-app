@@ -20,6 +20,7 @@ const Dashboard = lazy(() => import('./pages/owner/Dashboard'));
 const VenueSetup = lazy(() => import('./pages/owner/VenueSetup'));
 const NewListing = lazy(() => import('./pages/owner/NewListing'));
 const EditListing = lazy(() => import('./pages/owner/EditListing'));
+const SignIn = lazy(() => import('./pages/SignIn'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 
 const PageSpinner: React.FC = () => (
@@ -42,6 +43,7 @@ const App: React.FC = () => (
                   <Route path="/listing/:id" element={<ListingDetail />} />
                   <Route path="/search" element={<Search />} />
                   <Route path="/saved" element={<Saved />} />
+                  <Route path="/sign-in" element={<SignIn />} />
                 </Route>
 
                 <Route path="/owner/register" element={<OwnerRegister />} />

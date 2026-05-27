@@ -25,7 +25,7 @@ const MonoLabel: React.FC<{ children: React.ReactNode }> = ({ children }) => (
 );
 
 const Search: React.FC = () => {
-  const { listings } = useListings();
+  const { filteredListings: listings } = useListings();
   const [query, setQuery] = useState('');
 
   const handleClear = useCallback(() => setQuery(''), []);
