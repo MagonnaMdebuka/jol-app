@@ -57,6 +57,7 @@ const NewListing: React.FC = () => {
   const [artist, setArtist] = useState('');
   const [ageRestriction, setAgeRestriction] = useState('');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [capacity, setCapacity] = useState('');
 
   // Food fields
   const [cuisineType, setCuisineType] = useState('');
@@ -106,6 +107,7 @@ const NewListing: React.FC = () => {
       artist: type === 'event' ? artist || null : null,
       age_restriction: type === 'event' ? ageRestriction || null : null,
       tags: type === 'event' ? selectedTags : null,
+      capacity: type === 'event' ? (parseInt(capacity) || null) : null,
       cuisine_type: type === 'food' ? cuisineType || null : null,
       opening_hours: type === 'food' ? openingHours || null : null,
       price_range: type === 'food' ? priceRange : null,
@@ -124,7 +126,7 @@ const NewListing: React.FC = () => {
     setLoading(false);
   }, [
     title, description, address, type, venueId, ownerId, images,
-    eventDate, eventEndDate, entryFee, dressCode, artist, ageRestriction, selectedTags,
+    eventDate, eventEndDate, entryFee, dressCode, artist, ageRestriction, selectedTags, capacity,
     cuisineType, openingHours, priceRange, special,
     getVenueLocation, toast, navigate,
   ]);
@@ -185,7 +187,24 @@ const NewListing: React.FC = () => {
           <button
             key={value}
             type="button"
-            onClick={() => setType(value)}
+            onClick={() => {
+              setType(value);
+              if (value === 'food') {
+                setEventDate('');
+                setEventEndDate('');
+                setEntryFee('');
+                setDressCode('Smart Casual');
+                setArtist('');
+                setAgeRestriction('');
+                setSelectedTags([]);
+                setCapacity('');
+              } else {
+                setCuisineType('');
+                setOpeningHours('');
+                setPriceRange('RR');
+                setSpecial('');
+              }
+            }}
             className={`
               flex flex-col items-start gap-2 p-4 rounded-2xl border text-left
               transition-all duration-200 active:scale-[0.98]
@@ -312,6 +331,7 @@ const NewListing: React.FC = () => {
 
           <Input label="Artist / DJ" value={artist} onChange={(e) => setArtist(e.target.value)} placeholder="Optional" />
           <Input label="Age Restriction" value={ageRestriction} onChange={(e) => setAgeRestriction(e.target.value)} placeholder="e.g. 18+" />
+          <Input label="Capacity" type="number" value={capacity} onChange={(e) => setCapacity(e.target.value)} placeholder="e.g. 200" />
 
           <div>
             <MonoLabel>GENRE / VIBE TAGS</MonoLabel>

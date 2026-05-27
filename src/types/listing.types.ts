@@ -26,6 +26,7 @@ export interface IListing {
   artist: string | null;
   age_restriction: string | null;
   tags: string[] | null;
+  capacity: number | null;
 
   // Food-specific
   cuisine_type: string | null;

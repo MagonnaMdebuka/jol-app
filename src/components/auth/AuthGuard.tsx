@@ -9,7 +9,7 @@ interface IAuthGuardProps {
 }
 
 const AuthGuard: React.FC<IAuthGuardProps> = ({ children }) => {
-  const { authUser, loading } = useAuth();
+  const { authUser, isOwner, loading } = useAuth();
 
   if (loading) {
     return (
@@ -24,6 +24,10 @@ const AuthGuard: React.FC<IAuthGuardProps> = ({ children }) => {
   }
 
   if (!authUser) {
+    return <Navigate to="/owner/login" replace />;
+  }
+
+  if (!isOwner) {
     return <Navigate to="/owner/login" replace />;
   }
 

@@ -68,16 +68,34 @@ const VenueSetup: React.FC = () => {
   }, []);
 
   const handleNext = useCallback(() => {
-    if (step === 0 && !name.trim()) {
-      toast('Venue name is required', 'error');
-      return;
+    if (step === 0) {
+      if (!name.trim()) {
+        toast('Venue name is required', 'error');
+        return;
+      }
+      if (phone.trim()) {
+        const saPhone = /^(\+27|0)[6-8][0-9]{8}$/;
+        if (!saPhone.test(phone.replace(/\s/g, ''))) {
+          toast('Enter a valid SA phone number (e.g. 082 000 0000)', 'error');
+          return;
+        }
+      }
     }
-    if (step === 1 && !address.trim()) {
-      toast('Address is required', 'error');
-      return;
+    if (step === 1) {
+      if (!address.trim()) {
+        toast('Address is required', 'error');
+        return;
+      }
+      const parsedLat = parseFloat(lat);
+      const parsedLng = parseFloat(lng);
+      if (isNaN(parsedLat) || parsedLat < -35 || parsedLat > -22 ||
+          isNaN(parsedLng) || parsedLng < 16 || parsedLng > 33) {
+        toast('Coordinates appear to be outside South Africa', 'error');
+        return;
+      }
     }
     setStep((s) => Math.min(s + 1, 2));
-  }, [step, name, address, toast]);
+  }, [step, name, phone, address, lat, lng, toast]);
 
   const handleSubmit = useCallback(async () => {
     if (!name.trim() || !address.trim()) {
@@ -90,11 +108,15 @@ const VenueSetup: React.FC = () => {
 
     let coverPhotoUrl = '';
     if (coverFile) {
-      coverPhotoUrl = await uploadImage(
-        coverFile,
-        'venue-photos',
-        generatePath(ownerId, coverFile.name),
-      );
+      try {
+        coverPhotoUrl = await uploadImage(
+          coverFile,
+          'venue-photos',
+          generatePath(ownerId, coverFile.name),
+        );
+      } catch {
+        toast('Image upload failed -- continuing without cover photo', 'error');
+      }
     }
 
     const { id, error } = await createVenue({
