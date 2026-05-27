@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Smartphone, Mail } from 'lucide-react';
+import { Smartphone, Mail, ArrowLeft } from 'lucide-react';
 import EmailAuthForm from '../../components/auth/EmailAuthForm';
 import PhoneOTPForm from '../../components/auth/PhoneOTPForm';
 
@@ -33,6 +33,15 @@ const OwnerLogin: React.FC = () => {
             background: 'linear-gradient(180deg, rgba(22,17,12,0.3) 0%, rgba(22,17,12,0.95) 100%)',
           }}
         />
+        <div className="absolute top-0 left-0 right-0 px-4 pt-4">
+          <Link
+            to="/sign-in"
+            className="inline-flex items-center gap-1.5 text-nz-text/80 hover:text-nz-text text-sm font-medium transition-colors"
+          >
+            <ArrowLeft size={16} />
+            Back
+          </Link>
+        </div>
         <div className="absolute bottom-0 left-0 right-0 px-6 pb-6">
           <h1
             className="text-nz-text leading-[0.92] tracking-[-0.04em]"
