@@ -10,9 +10,10 @@ type AuthMode = 'register' | 'login';
 interface IEmailAuthFormProps {
   mode: AuthMode;
   onSuccess: () => void;
+  role?: 'user' | 'owner';
 }
 
-const EmailAuthForm: React.FC<IEmailAuthFormProps> = ({ mode, onSuccess }) => {
+const EmailAuthForm: React.FC<IEmailAuthFormProps> = ({ mode, onSuccess, role = 'user' }) => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -36,7 +37,7 @@ const EmailAuthForm: React.FC<IEmailAuthFormProps> = ({ mode, onSuccess }) => {
     setLoading(true);
     const { error } =
       mode === 'register'
-        ? await signUpWithEmail(name, email, password)
+        ? await signUpWithEmail(name, email, password, role)
         : await signInWithEmail(email, password);
 
     if (error) {

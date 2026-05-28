@@ -5,6 +5,7 @@ export const signUpWithEmail = async (
   name: string,
   email: string,
   password: string,
+  role: 'user' | 'owner' = 'user',
 ): Promise<{ error: string | null }> => {
   if (!isSupabaseEnabled() || !supabase) {
     return { error: null }; // demo mode
@@ -12,7 +13,7 @@ export const signUpWithEmail = async (
   const { error } = await supabase.auth.signUp({
     email,
     password,
-    options: { data: { display_name: name, role: 'owner' } },
+    options: { data: { display_name: name, role } },
   });
   return { error: error?.message ?? null };
 };

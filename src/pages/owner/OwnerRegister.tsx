@@ -102,7 +102,7 @@ const OwnerRegister: React.FC = () => {
             {tab === 'phone' ? (
               <PhoneOTPForm onSuccess={handleSuccess} />
             ) : (
-              <EmailAuthForm mode="register" onSuccess={handleSuccess} />
+              <EmailAuthForm mode="register" role="owner" onSuccess={handleSuccess} />
             )}
           </div>
 

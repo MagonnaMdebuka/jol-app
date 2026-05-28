@@ -1,14 +1,16 @@
 import React, { useState, useCallback } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { User, Building2 } from 'lucide-react';
-import PhoneOTPForm from '../components/auth/PhoneOTPForm';
+import EmailAuthForm from '../components/auth/EmailAuthForm';
 
 type Role = 'user' | 'owner';
+type Tab = 'sign-in' | 'register';
 
 const SignIn: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [role, setRole] = useState<Role>('user');
+  const [tab, setTab] = useState<Tab>('sign-in');
 
   const handleSuccess = useCallback(() => {
     const from = (location.state as { from?: string })?.from ?? '/feed';
@@ -29,7 +31,7 @@ const SignIn: React.FC = () => {
       style={{ background: 'radial-gradient(ellipse at 50% 0%, #1f1208 0%, #16110c 60%)' }}
     >
       {/* Hero */}
-      <div className="relative h-[220px] shrink-0 overflow-hidden">
+      <div className="relative h-[200px] shrink-0 overflow-hidden">
         <img
           src="https://images.unsplash.com/photo-1493676304819-0d7a8d026dcf?w=800&q=80"
           alt="Joburg nightlife"
@@ -40,17 +42,17 @@ const SignIn: React.FC = () => {
           className="absolute inset-0"
           style={{ background: 'linear-gradient(180deg, rgba(22,17,12,0.3) 0%, rgba(22,17,12,0.95) 100%)' }}
         />
-        <div className="absolute bottom-0 left-0 right-0 px-6 pb-6">
+        <div className="absolute bottom-0 left-0 right-0 px-6 pb-5">
           <h1
             className="text-nz-text leading-[0.92] tracking-[-0.04em]"
-            style={{ fontFamily: '"Bricolage Grotesque", system-ui', fontWeight: 900, fontSize: '30px' }}
+            style={{ fontFamily: '"Bricolage Grotesque", system-ui', fontWeight: 900, fontSize: '28px' }}
           >
             Discover Joburg tonight.
           </h1>
         </div>
       </div>
 
-      <div className="px-5 pt-6 pb-10">
+      <div className="px-5 pt-5 pb-10">
         <div className="w-full max-w-sm mx-auto flex flex-col gap-5">
 
           {/* Role selector */}
@@ -93,7 +95,24 @@ const SignIn: React.FC = () => {
             </div>
           </div>
 
-          {/* Auth card — only shown for regular users */}
+          {/* Sign in / Register tabs */}
+          <div className="flex bg-nz-elevated border border-nz-border rounded-2xl p-1 gap-1">
+            {(['sign-in', 'register'] as const).map((t) => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => setTab(t)}
+                className={`
+                  flex-1 py-2.5 text-sm font-semibold rounded-xl transition-all duration-200
+                  ${tab === t ? 'bg-nz-surface text-nz-text' : 'text-nz-muted hover:text-nz-text'}
+                `}
+              >
+                {t === 'sign-in' ? 'Sign in' : 'Register'}
+              </button>
+            ))}
+          </div>
+
+          {/* Auth card */}
           <div
             className="rounded-3xl p-6 shadow-[0_8px_48px_rgba(0,0,0,0.5)]"
             style={{
@@ -102,7 +121,11 @@ const SignIn: React.FC = () => {
               border: '1px solid rgba(58,44,27,0.6)',
             }}
           >
-            <PhoneOTPForm onSuccess={handleSuccess} />
+            <EmailAuthForm
+              mode={tab === 'sign-in' ? 'login' : 'register'}
+              role="user"
+              onSuccess={handleSuccess}
+            />
           </div>
 
           <p className="text-center text-nz-muted text-sm">
