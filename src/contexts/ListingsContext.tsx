@@ -7,7 +7,6 @@ import React, {
   type ReactNode,
 } from 'react';
 import { getNearbyListings } from '../services/listing.service';
-import { MOCK_LISTINGS } from '../constants/mockData';
 import { GAUTENG_CENTER } from '../constants/mapConfig';
 import type { IListingWithDistance } from '../types/listing.types';
 import type { VibeFilterId } from '../constants/categories';
@@ -90,7 +89,7 @@ const applyClientFilters = (
 };
 
 const ListingsProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [listings, setListings] = useState<IListingWithDistance[]>(MOCK_LISTINGS);
+  const [listings, setListings] = useState<IListingWithDistance[]>([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFiltersState] = useState<IListingFilters>(DEFAULT_FILTERS);
   const { lat, lng } = useGeolocation();
@@ -105,7 +104,7 @@ const ListingsProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
       const centerLat = lat ?? GAUTENG_CENTER.lat;
       const centerLng = lng ?? GAUTENG_CENTER.lng;
       const data = await getNearbyListings(centerLat, centerLng, filters.radius);
-      setListings(data.length > 0 ? data : MOCK_LISTINGS);
+      setListings(data);
       setLoading(false);
     };
     fetchListings();

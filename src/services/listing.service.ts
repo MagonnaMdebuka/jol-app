@@ -1,6 +1,5 @@
 import { supabase } from '../config/supabase';
 import { isSupabaseEnabled } from '../config/env';
-import { MOCK_LISTINGS } from '../constants/mockData';
 import type { IListing, IListingWithDistance } from '../types/listing.types';
 
 export const getNearbyListings = async (
@@ -9,10 +8,7 @@ export const getNearbyListings = async (
   radiusMetres: number = 10000,
   type: 'event' | 'food' | null = null,
 ): Promise<IListingWithDistance[]> => {
-  if (!isSupabaseEnabled() || !supabase) {
-    const filtered = type ? MOCK_LISTINGS.filter((l) => l.type === type) : MOCK_LISTINGS;
-    return filtered.filter((l) => l.distance_metres <= radiusMetres);
-  }
+  if (!isSupabaseEnabled() || !supabase) return [];
   const { data, error } = await supabase.rpc('get_nearby_listings', {
     lat,
     lng,
@@ -21,15 +17,13 @@ export const getNearbyListings = async (
   });
   if (error) {
     console.error('getNearbyListings error:', error.message);
-    return MOCK_LISTINGS;
+    return [];
   }
   return (data ?? []) as IListingWithDistance[];
 };
 
 export const getListing = async (id: string): Promise<IListingWithDistance | null> => {
-  if (!isSupabaseEnabled() || !supabase) {
-    return MOCK_LISTINGS.find((l) => l.id === id) ?? null;
-  }
+  if (!isSupabaseEnabled() || !supabase) return null;
   const { data, error } = await supabase.from('listings').select('*').eq('id', id).single();
   if (error) {
     console.error('getListing error:', error.message);
@@ -39,9 +33,7 @@ export const getListing = async (id: string): Promise<IListingWithDistance | nul
 };
 
 export const getOwnerListings = async (ownerId: string): Promise<IListing[]> => {
-  if (!isSupabaseEnabled() || !supabase) {
-    return MOCK_LISTINGS.filter((l) => l.owner_id === ownerId);
-  }
+  if (!isSupabaseEnabled() || !supabase) return [];
   const { data, error } = await supabase
     .from('listings')
     .select('*')
@@ -81,6 +73,6 @@ export const softDeleteListing = async (id: string): Promise<{ error: string | n
 };
 
 export const incrementViewCount = async (id: string): Promise<void> => {
-  if (!isSupabaseEnabled() || !supabase || id.startsWith('mock-')) return;
+  if (!isSupabaseEnabled() || !supabase) return;
   await supabase.rpc('increment_view_count', { listing_id: id });
 };

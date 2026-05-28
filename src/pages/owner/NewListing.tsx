@@ -5,7 +5,6 @@ import { useAuth } from '../../contexts/AuthContext';
 import { createListing } from '../../services/listing.service';
 import { getOwnerVenues } from '../../services/venue.service';
 import { isSupabaseEnabled } from '../../config/env';
-import { MOCK_LISTINGS } from '../../constants/mockData';
 import { EVENT_TAGS, CUISINE_TYPES, PRICE_RANGES } from '../../constants/categories';
 import { useToast } from '../../components/ui/Toast';
 import Input from '../../components/ui/Input';
@@ -131,8 +130,6 @@ const NewListing: React.FC = () => {
     getVenueLocation, toast, navigate,
   ]);
 
-  const mockVenueId = MOCK_LISTINGS[0].venue_id;
-
   return (
     <div className="flex flex-col gap-6 pb-10">
       {/* Header row */}
@@ -257,8 +254,7 @@ const NewListing: React.FC = () => {
         ) : (
           <div className="bg-nz-elevated/60 border border-nz-border/40 rounded-xl px-4 py-3">
             <p className="text-nz-muted text-xs leading-relaxed">
-              Using demo venue (<code className="text-nz-accent font-mono">{mockVenueId}</code>).
-              Real listings require a registered venue.
+              No venue registered. Set up your venue first to publish listings.
             </p>
           </div>
         )}
