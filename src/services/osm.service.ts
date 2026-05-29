@@ -14,17 +14,40 @@ export interface IOsmPlace {
 }
 
 const EVENT_KEYWORDS = [
-  'amapiano', 'dj', 'party', 'event', 'tonight', 'concert', 'jazz',
-  'hiphop', 'hip hop', 'house', 'afrobeats', 'rnb', 'r&b', 'deep house',
+  'amapiano',
+  'dj',
+  'party',
+  'event',
+  'tonight',
+  'concert',
+  'jazz',
+  'hiphop',
+  'hip hop',
+  'house',
+  'afrobeats',
+  'rnb',
+  'r&b',
+  'deep house',
 ];
 
 const AMENITY_LABELS: Record<string, string> = {
-  restaurant: 'Restaurant', cafe: 'Café', bar: 'Bar',
-  fast_food: 'Fast food', food_court: 'Food court', pub: 'Pub', bistro: 'Bistro',
+  restaurant: 'Restaurant',
+  cafe: 'Café',
+  bar: 'Bar',
+  fast_food: 'Fast food',
+  food_court: 'Food court',
+  pub: 'Pub',
+  bistro: 'Bistro',
 };
 
 const FOOD_TYPES = new Set([
-  'restaurant', 'cafe', 'bar', 'fast_food', 'food_court', 'pub', 'bistro',
+  'restaurant',
+  'cafe',
+  'bar',
+  'fast_food',
+  'food_court',
+  'pub',
+  'bistro',
 ]);
 
 const AMENITY_PATTERN = 'restaurant|cafe|bar|fast_food|food_court|pub|bistro';
@@ -50,7 +73,7 @@ const haversine = (lat1: number, lng1: number, lat2: number, lng2: number): numb
 };
 
 /** Geocode a location name. Returns null if it resolves to a food venue (not an area). */
-const geocodePlace = async (q: string): Promise<{ lat: number; lng: number } | null> => {
+export const geocodePlace = async (q: string): Promise<{ lat: number; lng: number } | null> => {
   const p = new URLSearchParams({ q, format: 'json', countrycodes: 'za', limit: '1' });
   try {
     const res = await fetch(`https://nominatim.openstreetmap.org/search?${p}`, {
@@ -64,8 +87,13 @@ const geocodePlace = async (q: string): Promise<{ lat: number; lng: number } | n
   }
 };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const parseOverpassElements = (elements: any[], refLat: number, refLng: number, hasLoc: boolean): IOsmPlace[] => {
+const parseOverpassElements = (
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  elements: any[],
+  refLat: number,
+  refLng: number,
+  hasLoc: boolean,
+): IOsmPlace[] => {
   const places: IOsmPlace[] = [];
   for (const el of elements ?? []) {
     const pLat: number | undefined = el.type === 'way' ? el.center?.lat : el.lat;
@@ -74,32 +102,43 @@ const parseOverpassElements = (elements: any[], refLat: number, refLng: number, 
     const t = el.tags ?? {};
     if (!t.name || !FOOD_TYPES.has(t.amenity)) continue;
     const suburb: string | null = t['addr:suburb'] ?? t.suburb ?? null;
-    const address = [t['addr:housenumber'], t['addr:street'], suburb].filter(Boolean).join(' ') || 'Address unavailable';
+    const address =
+      [t['addr:housenumber'], t['addr:street'], suburb].filter(Boolean).join(' ') ||
+      'Address unavailable';
     places.push({
       osm_id: el.id as number,
       osm_type: el.type === 'way' ? 'way' : 'node',
       name: t.name as string,
-      address, suburb,
+      address,
+      suburb,
       amenity: t.amenity as string,
       cuisine: t.cuisine ?? null,
-      lat: pLat, lng: pLon,
+      lat: pLat,
+      lng: pLon,
       distance_metres: hasLoc ? haversine(refLat, refLng, pLat, pLon) : null,
     });
   }
   return places;
 };
 
-/** Overpass area search — finds all food places within 3 km of a point (no name filter). */
-const overpassAreaSearch = async (
-  centerLat: number, centerLng: number,
-  refLat: number, refLng: number, hasLoc: boolean,
+/** Overpass area search — finds food places within 3 km of a point (no name filter). */
+export const overpassAreaSearch = async (
+  centerLat: number,
+  centerLng: number,
+  refLat: number,
+  refLng: number,
+  hasLoc: boolean,
+  limit: number = 20,
 ): Promise<IOsmPlace[]> => {
-  const oq = `[out:json][timeout:8];(node["amenity"~"${AMENITY_PATTERN}"](around:3000,${centerLat},${centerLng});way["amenity"~"${AMENITY_PATTERN}"](around:3000,${centerLat},${centerLng}););out center 20;`;
+  const oq = `[out:json][timeout:8];(node["amenity"~"${AMENITY_PATTERN}"](around:3000,${centerLat},${centerLng});way["amenity"~"${AMENITY_PATTERN}"](around:3000,${centerLat},${centerLng}););out center ${limit};`;
   const url = new URL('https://overpass.kumi.systems/api/interpreter');
   url.searchParams.set('data', oq);
   try {
     const res = await fetch(url.toString(), { signal: AbortSignal.timeout(10000) });
-    if (!res.ok) { console.warn(`[OSM] Overpass area search ${res.status}`); return []; }
+    if (!res.ok) {
+      console.warn(`[OSM] Overpass area search ${res.status}`);
+      return [];
+    }
     const d = await res.json();
     return parseOverpassElements(d.elements, refLat, refLng, hasLoc);
   } catch {
@@ -122,8 +161,14 @@ export const searchOsmPlaces = async (
 
   // Step 1 — Nominatim name search (finds "KFC", "Kuai" etc.)
   const params = new URLSearchParams({
-    q: query, format: 'json', countrycodes: 'za',
-    limit: '20', addressdetails: '1', extratags: '1', viewbox, bounded: '1',
+    q: query,
+    format: 'json',
+    countrycodes: 'za',
+    limit: '20',
+    addressdetails: '1',
+    extratags: '1',
+    viewbox,
+    bounded: '1',
   });
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -147,18 +192,26 @@ export const searchOsmPlaces = async (
       const addr = r.address ?? {};
       const name: string = addr.amenity ?? r.display_name.split(',')[0].trim();
       const suburb: string | null = addr.suburb ?? addr.neighbourhood ?? null;
-      const address = [addr.house_number, addr.road, suburb].filter(Boolean).join(' ') || 'Address unavailable';
-      return [{
-        osm_id: parseInt(r.osm_id, 10),
-        osm_type: r.osm_type === 'way' ? 'way' : 'node',
-        name, address, suburb, amenity: r.type,
-        cuisine: r.extratags?.cuisine ?? null,
-        lat: pLat, lng: pLon,
-        distance_metres: hasLocation ? haversine(lat, lng, pLat, pLon) : null,
-      }];
+      const address =
+        [addr.house_number, addr.road, suburb].filter(Boolean).join(' ') || 'Address unavailable';
+      return [
+        {
+          osm_id: parseInt(r.osm_id, 10),
+          osm_type: r.osm_type === 'way' ? 'way' : 'node',
+          name,
+          address,
+          suburb,
+          amenity: r.type,
+          cuisine: r.extratags?.cuisine ?? null,
+          lat: pLat,
+          lng: pLon,
+          distance_metres: hasLocation ? haversine(lat, lng, pLat, pLon) : null,
+        },
+      ];
     });
 
-  if (places.length > 0) return places.sort((a, b) => (a.distance_metres ?? 0) - (b.distance_metres ?? 0));
+  if (places.length > 0)
+    return places.sort((a, b) => (a.distance_metres ?? 0) - (b.distance_metres ?? 0));
 
   // Step 2 — No food places by name. Try geocoding as a location ("Sandton", "Rosebank", etc.)
   // then run an Overpass area search centred on those coordinates.

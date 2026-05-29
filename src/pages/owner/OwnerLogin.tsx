@@ -3,9 +3,11 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Smartphone, Mail, ArrowLeft } from 'lucide-react';
 import EmailAuthForm from '../../components/auth/EmailAuthForm';
 import PhoneOTPForm from '../../components/auth/PhoneOTPForm';
+import ForgotPasswordForm from '../../components/auth/ForgotPasswordForm';
 
 const OwnerLogin: React.FC = () => {
   const [usePhone, setUsePhone] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
   const navigate = useNavigate();
 
   const handleSuccess = useCallback(() => {
@@ -13,6 +15,8 @@ const OwnerLogin: React.FC = () => {
   }, [navigate]);
 
   const toggleMethod = useCallback(() => setUsePhone((prev) => !prev), []);
+  const handleForgotPassword = useCallback(() => setShowForgotPassword(true), []);
+  const handleBackFromForgot = useCallback(() => setShowForgotPassword(false), []);
 
   return (
     <div
@@ -59,9 +63,7 @@ const OwnerLogin: React.FC = () => {
       <div className="flex-1 px-5 pt-6 pb-10">
         <div className="w-full max-w-sm mx-auto">
           {/* Tab row: login / register */}
-          <div
-            className="flex bg-nz-elevated border border-nz-border rounded-2xl p-1 mb-6 gap-1"
-          >
+          <div className="flex bg-nz-elevated border border-nz-border rounded-2xl p-1 mb-6 gap-1">
             <div className="flex-1 py-2.5 text-center text-sm font-bold text-nz-text bg-nz-surface rounded-xl">
               Sign in
             </div>
@@ -82,35 +84,46 @@ const OwnerLogin: React.FC = () => {
               border: '1px solid rgba(58,44,27,0.6)',
             }}
           >
-            {usePhone ? (
+            {showForgotPassword ? (
+              <ForgotPasswordForm onBack={handleBackFromForgot} />
+            ) : usePhone ? (
               <PhoneOTPForm onSuccess={handleSuccess} />
             ) : (
-              <EmailAuthForm mode="login" onSuccess={handleSuccess} />
+              <EmailAuthForm
+                mode="login"
+                onSuccess={handleSuccess}
+                onForgotPassword={handleForgotPassword}
+              />
             )}
 
-            {/* Method toggle */}
-            <button
-              onClick={toggleMethod}
-              className="w-full mt-5 py-3 flex items-center justify-center gap-2 border border-nz-border rounded-2xl text-sm text-nz-muted font-medium hover:text-nz-text hover:border-nz-muted/40 transition-all duration-200"
-              type="button"
-            >
-              {usePhone ? (
-                <>
-                  <Mail size={15} />
-                  Sign in with email instead
-                </>
-              ) : (
-                <>
-                  <Smartphone size={15} />
-                  Sign in with phone OTP instead
-                </>
-              )}
-            </button>
+            {/* Method toggle — hide when showing forgot password */}
+            {!showForgotPassword && (
+              <button
+                onClick={toggleMethod}
+                className="w-full mt-5 py-3 flex items-center justify-center gap-2 border border-nz-border rounded-2xl text-sm text-nz-muted font-medium hover:text-nz-text hover:border-nz-muted/40 transition-all duration-200"
+                type="button"
+              >
+                {usePhone ? (
+                  <>
+                    <Mail size={15} />
+                    Sign in with email instead
+                  </>
+                ) : (
+                  <>
+                    <Smartphone size={15} />
+                    Sign in with phone OTP instead
+                  </>
+                )}
+              </button>
+            )}
           </div>
 
           <p className="text-center text-nz-muted text-sm mt-6">
             New to Jol?{' '}
-            <Link to="/owner/register" className="text-nz-accent font-semibold hover:text-nz-accent-text transition-colors">
+            <Link
+              to="/owner/register"
+              className="text-nz-accent font-semibold hover:text-nz-accent-text transition-colors"
+            >
               Create account
             </Link>
           </p>

@@ -1,7 +1,27 @@
-import React, { useCallback } from 'react';
-import { MapContainer, TileLayer, CircleMarker, Tooltip } from 'react-leaflet';
+import React, { useCallback, useMemo } from 'react';
+import { MapContainer, TileLayer, Marker, Tooltip } from 'react-leaflet';
+import MarkerClusterGroup from 'react-leaflet-cluster';
+import L from 'leaflet';
+import 'leaflet.markercluster';
 import { GAUTENG_CENTER, DEFAULT_ZOOM } from '../../constants/mapConfig';
 import type { IListingWithDistance } from '../../types/listing.types';
+
+const createClusterIcon = (cluster: L.MarkerCluster) => {
+  const count = cluster.getChildCount();
+  return L.divIcon({
+    html: `<div class="jol-cluster">${count}</div>`,
+    className: 'jol-cluster-wrapper',
+    iconSize: L.point(36, 36),
+  });
+};
+
+const createMarkerIcon = (isEvent: boolean) =>
+  L.divIcon({
+    html: `<div class="jol-marker" style="background:${isEvent ? '#ff7a3d' : '#d9a85c'};box-shadow:0 0 0 4px ${isEvent ? 'rgba(255,122,61,0.35)' : 'rgba(217,168,92,0.35)'}"></div>`,
+    className: 'jol-marker-wrapper',
+    iconSize: L.point(22, 22),
+    iconAnchor: L.point(11, 11),
+  });
 
 interface IMapViewProps {
   listings: IListingWithDistance[];
@@ -20,6 +40,9 @@ const MapView: React.FC<IMapViewProps> = ({ listings, onSelectListing }) => {
     [onSelectListing],
   );
 
+  const eventIcon = useMemo(() => createMarkerIcon(true), []);
+  const foodIcon = useMemo(() => createMarkerIcon(false), []);
+
   return (
     <MapContainer
       center={GAUTENG_CENTER}
@@ -28,36 +51,31 @@ const MapView: React.FC<IMapViewProps> = ({ listings, onSelectListing }) => {
       zoomControl={false}
       attributionControl
     >
-      <TileLayer
-        url={TILE_URL}
-        attribution={TILE_ATTRIBUTION}
-        subdomains="abcd"
-        maxZoom={20}
-      />
+      <TileLayer url={TILE_URL} attribution={TILE_ATTRIBUTION} subdomains="abcd" maxZoom={20} />
 
-      {listings.map((listing) => {
-        const isEvent = listing.type === 'event';
-        const fill = isEvent ? '#ff7a3d' : '#d9a85c';
-        const ring = isEvent ? 'rgba(255,122,61,0.35)' : 'rgba(217,168,92,0.35)';
-        return (
-          <CircleMarker
-            key={listing.id}
-            center={[listing.location.lat, listing.location.lng]}
-            radius={11}
-            pathOptions={{
-              fillColor: fill,
-              fillOpacity: 0.95,
-              color: ring,
-              weight: 5,
-            }}
-            eventHandlers={{ click: () => handleSelect(listing) }}
-          >
-            <Tooltip direction="top" offset={[0, -14]} className="jol-tooltip">
-              {listing.title}
-            </Tooltip>
-          </CircleMarker>
-        );
-      })}
+      <MarkerClusterGroup
+        chunkedLoading
+        iconCreateFunction={createClusterIcon}
+        maxClusterRadius={50}
+        spiderfyOnMaxZoom
+        showCoverageOnHover={false}
+      >
+        {listings.map((listing) => {
+          const isEvent = listing.type === 'event';
+          return (
+            <Marker
+              key={listing.id}
+              position={[listing.location.lat, listing.location.lng]}
+              icon={isEvent ? eventIcon : foodIcon}
+              eventHandlers={{ click: () => handleSelect(listing) }}
+            >
+              <Tooltip direction="top" offset={[0, -14]} className="jol-tooltip">
+                {listing.title}
+              </Tooltip>
+            </Marker>
+          );
+        })}
+      </MarkerClusterGroup>
     </MapContainer>
   );
 };

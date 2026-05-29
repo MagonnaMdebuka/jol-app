@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useState, useRef, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search } from 'lucide-react';
 import { useListings } from '../contexts/ListingsContext';
@@ -6,7 +6,9 @@ import { useNearbyListings } from '../hooks/useNearbyListings';
 import MapFilters from '../components/map/MapFilters';
 import { FeaturedCard, TileCard, RowCard } from '../components/listings/ListingCard';
 import Spinner from '../components/ui/Spinner';
-import type { IListingWithDistance } from '../types/listing.types';
+
+const INITIAL_PAGE_SIZE = 12;
+const PAGE_SIZE = 12;
 
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
@@ -41,13 +43,43 @@ const Feed: React.FC = () => {
   const { filteredListings, loading, filters, userLat, userLng } = useListings();
   const nearbyListings = useNearbyListings(filteredListings, userLat, userLng, filters.radius);
   const navigate = useNavigate();
+  const [visibleCount, setVisibleCount] = useState(INITIAL_PAGE_SIZE);
+  const sentinelRef = useRef<HTMLDivElement>(null);
 
   const handleSearchPress = useCallback(() => navigate('/search'), [navigate]);
+
+  // Reset pagination when listings or filter changes
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- valid reset pattern
+    setVisibleCount(INITIAL_PAGE_SIZE);
+  }, [nearbyListings.length, filters.vibe]);
 
   const featured = nearbyListings.find((l) => l.type === 'event') ?? nearbyListings[0];
   const goOutListings = nearbyListings.filter((l) => l.type === 'event').slice(0, 12);
   const eatListings = nearbyListings.filter((l) => l.type === 'food').slice(0, 12);
-  const allListings: IListingWithDistance[] = nearbyListings;
+
+  const visibleListings = useMemo(
+    () => nearbyListings.slice(0, visibleCount),
+    [nearbyListings, visibleCount],
+  );
+  const hasMore = visibleCount < nearbyListings.length;
+
+  // Intersection observer for infinite scroll
+  useEffect(() => {
+    if (!sentinelRef.current || !hasMore) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          setVisibleCount((prev) => Math.min(prev + PAGE_SIZE, nearbyListings.length));
+        }
+      },
+      { rootMargin: '200px' },
+    );
+
+    observer.observe(sentinelRef.current);
+    return () => observer.disconnect();
+  }, [hasMore, nearbyListings.length]);
 
   return (
     <div className="h-full overflow-y-auto bg-nz-bg">
@@ -58,7 +90,11 @@ const Feed: React.FC = () => {
             <div>
               <span
                 className="text-nz-muted block mb-2"
-                style={{ fontFamily: '"JetBrains Mono", monospace', fontSize: '10px', letterSpacing: '0.04em' }}
+                style={{
+                  fontFamily: '"JetBrains Mono", monospace',
+                  fontSize: '10px',
+                  letterSpacing: '0.04em',
+                }}
               >
                 {getDayLabel()}
               </span>
@@ -71,8 +107,7 @@ const Feed: React.FC = () => {
                   color: '#f5ecd9',
                 }}
               >
-                Where to,{' '}
-                <span style={{ color: '#ff7a3d' }}>tonight?</span>
+                Where to, <span style={{ color: '#ff7a3d' }}>tonight?</span>
               </h1>
               <p className="text-nz-muted text-sm mt-2">
                 {loading ? 'Finding spots…' : `${nearbyListings.length} spots near you · Joburg`}
@@ -115,7 +150,11 @@ const Feed: React.FC = () => {
                 <div className="flex items-center gap-2 mb-4">
                   <span
                     className="text-nz-accent"
-                    style={{ fontFamily: '"JetBrains Mono", monospace', fontSize: '10px', letterSpacing: '0.04em' }}
+                    style={{
+                      fontFamily: '"JetBrains Mono", monospace',
+                      fontSize: '10px',
+                      letterSpacing: '0.04em',
+                    }}
                   >
                     ◈ FEATURED · TONIGHT
                   </span>
@@ -152,15 +191,21 @@ const Feed: React.FC = () => {
               </section>
             )}
 
-            {/* Everything nearby — responsive grid */}
-            {allListings.length > 0 && (
+            {/* Everything nearby — responsive grid with infinite scroll */}
+            {nearbyListings.length > 0 && (
               <section>
                 <SectionHeader title="Everything nearby" />
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-                  {allListings.map((l) => (
+                  {visibleListings.map((l) => (
                     <RowCard key={l.id} listing={l} />
                   ))}
                 </div>
+                {/* Scroll sentinel for infinite loading */}
+                {hasMore && (
+                  <div ref={sentinelRef} className="flex justify-center py-8">
+                    <Spinner size="sm" />
+                  </div>
+                )}
               </section>
             )}
           </div>

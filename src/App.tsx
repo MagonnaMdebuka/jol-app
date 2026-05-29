@@ -22,6 +22,7 @@ const NewListing = lazy(() => import('./pages/owner/NewListing'));
 const EditListing = lazy(() => import('./pages/owner/EditListing'));
 const SignIn = lazy(() => import('./pages/SignIn'));
 const NotFound = lazy(() => import('./pages/NotFound'));
+const ResetPassword = lazy(() => import('./pages/ResetPassword'));
 
 const PageSpinner: React.FC = () => (
   <div className="flex items-center justify-center h-full bg-nz-bg">
@@ -48,6 +49,7 @@ const App: React.FC = () => (
 
                 <Route path="/owner/register" element={<OwnerRegister />} />
                 <Route path="/owner/login" element={<OwnerLogin />} />
+                <Route path="/reset-password" element={<ResetPassword />} />
 
                 <Route
                   element={
