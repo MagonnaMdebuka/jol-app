@@ -52,3 +52,21 @@ export const signOut = async (): Promise<void> => {
   if (!isSupabaseEnabled() || !supabase) return;
   await supabase.auth.signOut();
 };
+
+export const sendPasswordReset = async (email: string): Promise<{ error: string | null }> => {
+  if (!isSupabaseEnabled() || !supabase) {
+    return { error: null }; // demo mode
+  }
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${window.location.origin}/reset-password`,
+  });
+  return { error: error?.message ?? null };
+};
+
+export const updatePassword = async (newPassword: string): Promise<{ error: string | null }> => {
+  if (!isSupabaseEnabled() || !supabase) {
+    return { error: null }; // demo mode
+  }
+  const { error } = await supabase.auth.updateUser({ password: newPassword });
+  return { error: error?.message ?? null };
+};
