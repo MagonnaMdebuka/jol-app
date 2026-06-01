@@ -1,8 +1,9 @@
 -- ============================================================
 -- Jol — Nightlife & Food Discovery App
--- Migration 001: Initial Schema
+-- Migration 001: Initial Schema (IDEMPOTENT)
 --
 -- Run this in: Supabase Dashboard → SQL Editor
+-- Safe to re-run — uses IF NOT EXISTS / OR REPLACE
 -- ============================================================
 
 -- ─────────────────────────────────────────────────────────────
@@ -28,7 +29,7 @@ $$ LANGUAGE plpgsql;
 -- Extends auth.users — created automatically on sign-up
 -- Roles: 'user' (browse + buy tickets) | 'owner' (manage venue)
 -- ═════════════════════════════════════════════════════════════
-CREATE TABLE public.profiles (
+CREATE TABLE IF NOT EXISTS public.profiles (
   id           UUID        PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   display_name TEXT,
   avatar_url   TEXT,                        -- Supabase Storage URL
@@ -39,6 +40,7 @@ CREATE TABLE public.profiles (
   updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+DROP TRIGGER IF EXISTS trg_profiles_updated_at ON public.profiles;
 CREATE TRIGGER trg_profiles_updated_at
   BEFORE UPDATE ON public.profiles
   FOR EACH ROW EXECUTE FUNCTION set_updated_at();
@@ -53,11 +55,13 @@ BEGIN
     COALESCE(NEW.raw_user_meta_data->>'display_name', split_part(NEW.email, '@', 1)),
     NEW.raw_user_meta_data->>'avatar_url',
     COALESCE(NEW.raw_user_meta_data->>'role', 'user')
-  );
+  )
+  ON CONFLICT (id) DO NOTHING;
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION handle_new_user();
@@ -68,7 +72,7 @@ CREATE TRIGGER on_auth_user_created
 -- A venue owner can have one or more venues (clubs, restaurants…)
 -- Matches IVenue + VenueType in src/types/venue.types.ts
 -- ═════════════════════════════════════════════════════════════
-CREATE TABLE public.venues (
+CREATE TABLE IF NOT EXISTS public.venues (
   id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
   owner_id    UUID        NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   name        TEXT        NOT NULL,
@@ -90,6 +94,7 @@ CREATE TABLE public.venues (
   updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+DROP TRIGGER IF EXISTS trg_venues_updated_at ON public.venues;
 CREATE TRIGGER trg_venues_updated_at
   BEFORE UPDATE ON public.venues
   FOR EACH ROW EXECUTE FUNCTION set_updated_at();
@@ -99,7 +104,7 @@ CREATE TRIGGER trg_venues_updated_at
 -- TABLE: listings
 -- Events and food spots — matches IListing in listing.types.ts
 -- ═════════════════════════════════════════════════════════════
-CREATE TABLE public.listings (
+CREATE TABLE IF NOT EXISTS public.listings (
   id              UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
   venue_id        UUID        NOT NULL REFERENCES public.venues(id) ON DELETE CASCADE,
   owner_id        UUID        NOT NULL REFERENCES public.profiles(id),
@@ -138,6 +143,7 @@ CREATE TABLE public.listings (
   updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+DROP TRIGGER IF EXISTS trg_listings_updated_at ON public.listings;
 CREATE TRIGGER trg_listings_updated_at
   BEFORE UPDATE ON public.listings
   FOR EACH ROW EXECUTE FUNCTION set_updated_at();
@@ -147,7 +153,7 @@ CREATE TRIGGER trg_listings_updated_at
 -- TABLE: saved_listings
 -- Moves saves from localStorage → DB so they sync across devices
 -- ═════════════════════════════════════════════════════════════
-CREATE TABLE public.saved_listings (
+CREATE TABLE IF NOT EXISTS public.saved_listings (
   id         UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id    UUID        NOT NULL REFERENCES public.profiles(id)  ON DELETE CASCADE,
   listing_id UUID        NOT NULL REFERENCES public.listings(id)  ON DELETE CASCADE,
@@ -172,6 +178,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trg_save_count ON public.saved_listings;
 CREATE TRIGGER trg_save_count
   AFTER INSERT OR DELETE ON public.saved_listings
   FOR EACH ROW EXECUTE FUNCTION sync_save_count();
@@ -184,7 +191,7 @@ CREATE TRIGGER trg_save_count
 -- When an anonymous user later signs up their session_id rows
 -- can be back-filled with their new user_id.
 -- ═════════════════════════════════════════════════════════════
-CREATE TABLE public.listing_views (
+CREATE TABLE IF NOT EXISTS public.listing_views (
   id         UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
   listing_id UUID        NOT NULL REFERENCES public.listings(id) ON DELETE CASCADE,
   user_id    UUID        REFERENCES public.profiles(id) ON DELETE SET NULL,
@@ -199,7 +206,7 @@ CREATE TABLE public.listing_views (
 -- Matches IReport + ReportReason in src/types/report.types.ts
 -- Auto-flags listing for review after 3 pending reports
 -- ═════════════════════════════════════════════════════════════
-CREATE TABLE public.reports (
+CREATE TABLE IF NOT EXISTS public.reports (
   id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
   listing_id  UUID        NOT NULL REFERENCES public.listings(id) ON DELETE CASCADE,
   reported_by UUID        REFERENCES public.profiles(id) ON DELETE SET NULL,
@@ -232,6 +239,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trg_auto_review ON public.reports;
 CREATE TRIGGER trg_auto_review
   AFTER INSERT ON public.reports
   FOR EACH ROW EXECUTE FUNCTION auto_review_listing();
@@ -241,7 +249,7 @@ CREATE TRIGGER trg_auto_review
 -- TABLE: orders  (PayFast — future)
 -- One order can contain multiple tickets
 -- ═════════════════════════════════════════════════════════════
-CREATE TABLE public.orders (
+CREATE TABLE IF NOT EXISTS public.orders (
   id                         UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id                    UUID         NOT NULL REFERENCES public.profiles(id),
   total_amount               NUMERIC(10,2) NOT NULL,
@@ -259,7 +267,7 @@ CREATE TABLE public.orders (
 -- Each ticket row represents purchased entry to a listing
 -- qr_code is scanned at the venue door
 -- ═════════════════════════════════════════════════════════════
-CREATE TABLE public.tickets (
+CREATE TABLE IF NOT EXISTS public.tickets (
   id          UUID          PRIMARY KEY DEFAULT gen_random_uuid(),
   order_id    UUID          NOT NULL REFERENCES public.orders(id) ON DELETE CASCADE,
   listing_id  UUID          NOT NULL REFERENCES public.listings(id),
@@ -277,20 +285,20 @@ CREATE TABLE public.tickets (
 
 
 -- ═════════════════════════════════════════════════════════════
--- INDEXES
+-- INDEXES (idempotent — CREATE INDEX IF NOT EXISTS)
 -- ═════════════════════════════════════════════════════════════
-CREATE INDEX idx_listings_venue_id      ON public.listings       (venue_id);
-CREATE INDEX idx_listings_owner_id      ON public.listings       (owner_id);
-CREATE INDEX idx_listings_type          ON public.listings       (type);
-CREATE INDEX idx_listings_status        ON public.listings       (status);
-CREATE INDEX idx_listing_views_listing  ON public.listing_views  (listing_id);
-CREATE INDEX idx_listing_views_user     ON public.listing_views  (user_id);
-CREATE INDEX idx_listing_views_session  ON public.listing_views  (session_id);
-CREATE INDEX idx_saved_listings_user    ON public.saved_listings (user_id);
-CREATE INDEX idx_reports_listing        ON public.reports        (listing_id);
-CREATE INDEX idx_orders_user            ON public.orders         (user_id);
-CREATE INDEX idx_tickets_listing        ON public.tickets        (listing_id);
-CREATE INDEX idx_tickets_user           ON public.tickets        (user_id);
+CREATE INDEX IF NOT EXISTS idx_listings_venue_id      ON public.listings       (venue_id);
+CREATE INDEX IF NOT EXISTS idx_listings_owner_id      ON public.listings       (owner_id);
+CREATE INDEX IF NOT EXISTS idx_listings_type          ON public.listings       (type);
+CREATE INDEX IF NOT EXISTS idx_listings_status        ON public.listings       (status);
+CREATE INDEX IF NOT EXISTS idx_listing_views_listing  ON public.listing_views  (listing_id);
+CREATE INDEX IF NOT EXISTS idx_listing_views_user     ON public.listing_views  (user_id);
+CREATE INDEX IF NOT EXISTS idx_listing_views_session  ON public.listing_views  (session_id);
+CREATE INDEX IF NOT EXISTS idx_saved_listings_user    ON public.saved_listings (user_id);
+CREATE INDEX IF NOT EXISTS idx_reports_listing        ON public.reports        (listing_id);
+CREATE INDEX IF NOT EXISTS idx_orders_user            ON public.orders         (user_id);
+CREATE INDEX IF NOT EXISTS idx_tickets_listing        ON public.tickets        (listing_id);
+CREATE INDEX IF NOT EXISTS idx_tickets_user           ON public.tickets        (user_id);
 
 
 -- ═════════════════════════════════════════════════════════════
@@ -396,11 +404,12 @@ $$;
 -- profiles ────────────────────────────────────
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
--- Each user reads and updates only their own profile
+DROP POLICY IF EXISTS "profiles: read own" ON public.profiles;
 CREATE POLICY "profiles: read own"
   ON public.profiles FOR SELECT
   USING (auth.uid() = id);
 
+DROP POLICY IF EXISTS "profiles: update own" ON public.profiles;
 CREATE POLICY "profiles: update own"
   ON public.profiles FOR UPDATE
   USING (auth.uid() = id);
@@ -408,12 +417,12 @@ CREATE POLICY "profiles: update own"
 -- venues ──────────────────────────────────────
 ALTER TABLE public.venues ENABLE ROW LEVEL SECURITY;
 
--- Anyone (incl. anon) can see active venues
+DROP POLICY IF EXISTS "venues: public read active" ON public.venues;
 CREATE POLICY "venues: public read active"
   ON public.venues FOR SELECT
   USING (status = 'active');
 
--- Owners can do everything to their own venues
+DROP POLICY IF EXISTS "venues: owner full access" ON public.venues;
 CREATE POLICY "venues: owner full access"
   ON public.venues FOR ALL
   USING (auth.uid() = owner_id);
@@ -421,12 +430,12 @@ CREATE POLICY "venues: owner full access"
 -- listings ────────────────────────────────────
 ALTER TABLE public.listings ENABLE ROW LEVEL SECURITY;
 
--- Anyone can see active + under_review listings (under_review still visible but flagged)
+DROP POLICY IF EXISTS "listings: public read" ON public.listings;
 CREATE POLICY "listings: public read"
   ON public.listings FOR SELECT
   USING (status IN ('active','under_review'));
 
--- Owners can do everything to their own listings
+DROP POLICY IF EXISTS "listings: owner full access" ON public.listings;
 CREATE POLICY "listings: owner full access"
   ON public.listings FOR ALL
   USING (auth.uid() = owner_id);
@@ -434,7 +443,7 @@ CREATE POLICY "listings: owner full access"
 -- saved_listings ──────────────────────────────
 ALTER TABLE public.saved_listings ENABLE ROW LEVEL SECURITY;
 
--- Each user can only see and modify their own saves
+DROP POLICY IF EXISTS "saved_listings: own" ON public.saved_listings;
 CREATE POLICY "saved_listings: own"
   ON public.saved_listings FOR ALL
   USING (auth.uid() = user_id);
@@ -442,12 +451,12 @@ CREATE POLICY "saved_listings: own"
 -- listing_views ───────────────────────────────
 ALTER TABLE public.listing_views ENABLE ROW LEVEL SECURITY;
 
--- Anyone can insert a view (anonymous or logged in)
+DROP POLICY IF EXISTS "listing_views: insert any" ON public.listing_views;
 CREATE POLICY "listing_views: insert any"
   ON public.listing_views FOR INSERT
   WITH CHECK (true);
 
--- Users can only read their own view history
+DROP POLICY IF EXISTS "listing_views: read own" ON public.listing_views;
 CREATE POLICY "listing_views: read own"
   ON public.listing_views FOR SELECT
   USING (auth.uid() = user_id);
@@ -455,12 +464,12 @@ CREATE POLICY "listing_views: read own"
 -- reports ─────────────────────────────────────
 ALTER TABLE public.reports ENABLE ROW LEVEL SECURITY;
 
--- Only authenticated users can file a report
+DROP POLICY IF EXISTS "reports: authenticated insert" ON public.reports;
 CREATE POLICY "reports: authenticated insert"
   ON public.reports FOR INSERT
   WITH CHECK (auth.uid() IS NOT NULL);
 
--- Users can read only the reports they filed
+DROP POLICY IF EXISTS "reports: read own" ON public.reports;
 CREATE POLICY "reports: read own"
   ON public.reports FOR SELECT
   USING (auth.uid() = reported_by);
@@ -468,6 +477,7 @@ CREATE POLICY "reports: read own"
 -- orders ──────────────────────────────────────
 ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "orders: own" ON public.orders;
 CREATE POLICY "orders: own"
   ON public.orders FOR ALL
   USING (auth.uid() = user_id);
@@ -475,6 +485,7 @@ CREATE POLICY "orders: own"
 -- tickets ─────────────────────────────────────
 ALTER TABLE public.tickets ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "tickets: own" ON public.tickets;
 CREATE POLICY "tickets: own"
   ON public.tickets FOR ALL
   USING (auth.uid() = user_id);
