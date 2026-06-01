@@ -93,6 +93,8 @@ const OwnerLogin: React.FC = () => {
                 mode="login"
                 onSuccess={handleSuccess}
                 onForgotPassword={handleForgotPassword}
+                role="owner"
+                requireRole
               />
             )}
 

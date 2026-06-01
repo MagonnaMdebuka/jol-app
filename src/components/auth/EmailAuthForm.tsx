@@ -1,5 +1,9 @@
 import React, { useState, useCallback } from 'react';
-import { signUpWithEmail, signInWithEmail } from '../../services/auth.service';
+import {
+  signUpWithEmail,
+  signInWithEmail,
+  signInWithEmailAndRole,
+} from '../../services/auth.service';
 import { isSupabaseEnabled } from '../../config/env';
 import { useToast } from '../ui/Toast';
 import Input from '../ui/Input';
@@ -11,6 +15,8 @@ interface IEmailAuthFormProps {
   mode: AuthMode;
   onSuccess: () => void;
   role?: 'user' | 'owner';
+  /** If true, verify the user has the correct role on login */
+  requireRole?: boolean;
   onForgotPassword?: () => void;
 }
 
@@ -18,6 +24,7 @@ const EmailAuthForm: React.FC<IEmailAuthFormProps> = ({
   mode,
   onSuccess,
   role = 'user',
+  requireRole = false,
   onForgotPassword,
 }) => {
   const [name, setName] = useState('');
@@ -50,13 +57,21 @@ const EmailAuthForm: React.FC<IEmailAuthFormProps> = ({
     }
 
     setLoading(true);
-    const { error } =
-      mode === 'register'
-        ? await signUpWithEmail(name, email, password, role)
-        : await signInWithEmail(email, password);
 
-    if (error) {
-      toast(error, 'error');
+    let result: { error: string | null };
+
+    if (mode === 'register') {
+      result = await signUpWithEmail(name, email, password, role);
+    } else if (requireRole && role === 'owner') {
+      // Owner login - verify role
+      result = await signInWithEmailAndRole(email, password, 'owner');
+    } else {
+      // Regular login
+      result = await signInWithEmail(email, password);
+    }
+
+    if (result.error) {
+      toast(result.error, 'error');
     } else {
       toast(
         mode === 'register' ? 'Account created! Check your email.' : 'Welcome back!',
@@ -65,7 +80,7 @@ const EmailAuthForm: React.FC<IEmailAuthFormProps> = ({
       onSuccess();
     }
     setLoading(false);
-  }, [name, email, password, confirm, mode, role, onSuccess, toast]);
+  }, [name, email, password, confirm, mode, role, requireRole, onSuccess, toast]);
 
   return (
     <div className="flex flex-col gap-4">

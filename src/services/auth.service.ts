@@ -70,3 +70,58 @@ export const updatePassword = async (newPassword: string): Promise<{ error: stri
   const { error } = await supabase.auth.updateUser({ password: newPassword });
   return { error: error?.message ?? null };
 };
+
+/** Get user's role from profile or auth metadata */
+export const getUserRole = async (): Promise<'user' | 'owner' | 'admin' | null> => {
+  if (!isSupabaseEnabled() || !supabase) {
+    return null; // demo mode
+  }
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return null;
+
+  // First check the profiles table (source of truth)
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single();
+
+  if (profile?.role) {
+    return profile.role as 'user' | 'owner' | 'admin';
+  }
+
+  // Fallback to auth metadata (set during sign-up)
+  return (user.user_metadata?.role as 'user' | 'owner' | 'admin') ?? 'user';
+};
+
+/** Sign in and verify the user has the required role */
+export const signInWithEmailAndRole = async (
+  email: string,
+  password: string,
+  requiredRole: 'owner' | 'admin',
+): Promise<{ error: string | null }> => {
+  if (!isSupabaseEnabled() || !supabase) {
+    return { error: null }; // demo mode
+  }
+
+  // First sign in
+  const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+  if (signInError) {
+    return { error: signInError.message };
+  }
+
+  // Check role
+  const role = await getUserRole();
+  if (role !== requiredRole && role !== 'admin') {
+    // Sign out - user doesn't have permission
+    await supabase.auth.signOut();
+    return {
+      error: `This account is not registered as ${requiredRole === 'owner' ? 'a venue owner' : 'an admin'}. Please use the correct login page or register as ${requiredRole === 'owner' ? 'an owner' : 'an admin'}.`,
+    };
+  }
+
+  return { error: null };
+};

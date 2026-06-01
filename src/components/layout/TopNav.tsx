@@ -1,6 +1,6 @@
-import React from 'react';
-import { NavLink, Link } from 'react-router-dom';
-import { MapPin, Layers, Search, Heart, User } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { NavLink, Link, useNavigate } from 'react-router-dom';
+import { MapPin, Layers, Search, Heart, User, LogOut, ChevronDown } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
 const USER_LINKS = [
@@ -12,6 +12,28 @@ const USER_LINKS = [
 
 const TopNav: React.FC = () => {
   const { isGuest, isOwner, user, authUser, signOut } = useAuth();
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
+
+  const displayName = user?.display_name || authUser?.email?.split('@')[0] || 'Account';
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleSignOut = async () => {
+    setDropdownOpen(false);
+    await signOut();
+    navigate('/');
+  };
 
   return (
     <div className="hidden md:block">
@@ -58,9 +80,10 @@ const TopNav: React.FC = () => {
                 className={({ isActive }) =>
                   `flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-sm font-medium
                    transition-all duration-200
-                   ${isActive
-                     ? 'bg-nz-accent/10 text-nz-accent'
-                     : 'text-nz-muted hover:text-nz-text hover:bg-nz-elevated'
+                   ${
+                     isActive
+                       ? 'bg-nz-accent/10 text-nz-accent'
+                       : 'text-nz-muted hover:text-nz-text hover:bg-nz-elevated'
                    }`
                 }
               >
@@ -95,13 +118,51 @@ const TopNav: React.FC = () => {
                 Sign in
               </Link>
             ) : (
-              <button
-                onClick={() => void signOut()}
-                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-sm font-medium text-nz-muted hover:text-nz-text hover:bg-nz-elevated transition-all duration-200"
-                type="button"
-              >
-                {user?.display_name ?? authUser?.phone ?? 'Account'}
-              </button>
+              <div className="relative" ref={dropdownRef}>
+                <button
+                  onClick={() => setDropdownOpen(!dropdownOpen)}
+                  className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-sm font-medium text-nz-text bg-nz-elevated border border-nz-border hover:border-nz-muted/60 transition-all duration-200"
+                  type="button"
+                >
+                  <div className="w-6 h-6 rounded-full bg-nz-accent/20 flex items-center justify-center">
+                    <User size={14} className="text-nz-accent" />
+                  </div>
+                  <span className="max-w-[120px] truncate">{displayName}</span>
+                  <ChevronDown
+                    size={14}
+                    className={`text-nz-muted transition-transform duration-200 ${dropdownOpen ? 'rotate-180' : ''}`}
+                  />
+                </button>
+
+                {/* Dropdown menu */}
+                {dropdownOpen && (
+                  <div
+                    className="absolute right-0 mt-2 w-48 rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.5)] overflow-hidden"
+                    style={{
+                      background: 'rgba(31,24,16,0.98)',
+                      border: '1px solid rgba(58,44,27,0.6)',
+                      backdropFilter: 'blur(20px)',
+                    }}
+                  >
+                    <div className="px-4 py-3 border-b border-nz-border/40">
+                      <p className="text-nz-text text-sm font-semibold truncate">{displayName}</p>
+                      <p className="text-nz-muted text-xs truncate">
+                        {authUser?.email || authUser?.phone}
+                      </p>
+                    </div>
+                    <div className="py-1">
+                      <button
+                        onClick={handleSignOut}
+                        className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-nz-muted hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                        type="button"
+                      >
+                        <LogOut size={16} />
+                        Sign out
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
             )}
           </div>
         </div>
