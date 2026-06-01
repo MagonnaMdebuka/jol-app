@@ -7,6 +7,7 @@ Status markers: `[x]` done · `[-]` in progress · `[ ]` not started
 ## Shipped
 
 ### Foundation
+
 - [x] Project scaffold — Vite + React 18 + TypeScript + Tailwind
 - [x] Design system — `nz-*` colour tokens, Bricolage Grotesque / JetBrains Mono / Inter
 - [x] Supabase guard pattern — app never crashes without env vars
@@ -15,6 +16,7 @@ Status markers: `[x]` done · `[-]` in progress · `[ ]` not started
 - [x] Vercel deployment config (`vercel.json` catch-all rewrite)
 
 ### Database
+
 - [x] PostgreSQL schema migration (`supabase/migrations/001_initial_schema.sql`)
 - [x] Tables: profiles, venues, listings, saved_listings, listing_views, reports, orders, tickets
 - [x] RPCs: `get_nearby_listings`, `increment_view_count`
@@ -22,6 +24,7 @@ Status markers: `[x]` done · `[-]` in progress · `[ ]` not started
 - [x] Auto-review trigger — listing flagged after 3 reports
 
 ### Auth
+
 - [x] Phone OTP sign-in (regular users)
 - [x] Email sign-up / sign-in (venue owners)
 - [x] Role selector on sign-in page (user vs owner)
@@ -30,6 +33,7 @@ Status markers: `[x]` done · `[-]` in progress · `[ ]` not started
 - [x] Auto-create profile on sign-up via DB trigger
 
 ### Map
+
 - [x] CartoDB Dark Matter tile layer (no API key)
 - [x] Discovery map — default view (`/`)
 - [x] Event markers (orange) + food markers (apricot)
@@ -37,6 +41,7 @@ Status markers: `[x]` done · `[-]` in progress · `[ ]` not started
 - [x] Geolocation hook — user position on map
 
 ### Listings — Explorer side
+
 - [x] Feed page (`/feed`) — card list with vibe filter
 - [x] Listing detail page (`/listing/:id`) — full info, report button
 - [x] Saved listings (`/saved`) — persisted in localStorage
@@ -44,6 +49,7 @@ Status markers: `[x]` done · `[-]` in progress · `[ ]` not started
 - [x] Report system — auto `under_review` at 3 reports
 
 ### Search
+
 - [x] Search page (`/search`) — query filter against Jol listings
 - [x] Neighbourhood chips + trending tag shortcuts
 - [x] OSM dual-layer results — Jol listings + OpenStreetMap places
@@ -55,6 +61,7 @@ Status markers: `[x]` done · `[-]` in progress · `[ ]` not started
 - [x] OSM place detail BottomSheet with "Add venue to Jol" CTA
 
 ### Owner side
+
 - [x] Owner register (`/owner/register`)
 - [x] Owner login (`/owner/login`)
 - [x] Owner dashboard (`/owner/dashboard`) — listing list, soft delete
@@ -64,6 +71,7 @@ Status markers: `[x]` done · `[-]` in progress · `[ ]` not started
 - [x] Image uploader — Supabase Storage with blob URL mock fallback
 
 ### UI Components
+
 - [x] Button, Input, Badge, Chip, Spinner, Toast
 - [x] BottomSheet (slide-up panel)
 - [x] Modal
@@ -78,6 +86,7 @@ Status markers: `[x]` done · `[-]` in progress · `[ ]` not started
 ## Up Next
 
 ### Payments — PayFast
+
 - [ ] Supabase Edge Function — server-side PayFast request signing
 - [ ] Ticket purchase flow — select ticket type (general / VIP / ladies / gents)
 - [ ] QR code generation on purchase
@@ -86,22 +95,26 @@ Status markers: `[x]` done · `[-]` in progress · `[ ]` not started
 - [ ] My tickets page for users
 
 ### Owner Analytics
+
 - [ ] Dashboard view count graph — daily views per listing
 - [ ] Top-performing listing card
 - [ ] Reach metric — unique sessions vs repeat views
 
 ### Moderation / Admin
+
 - [ ] Admin panel — view flagged listings (`under_review`)
 - [ ] Approve / reject / remove flagged listing
 - [ ] Ban owner account
 
 ### Discovery improvements
+
 - [ ] "Near me" sort toggle on Feed and Map
 - [ ] Listing share button — native share sheet / copy link
 - [ ] Event RSVP — interested count (no payment, just a tap)
 - [ ] Push notifications — new event near user (PWA)
 
 ### Content & Growth
+
 - [ ] Owner onboarding email sequence
 - [ ] OSM "Add venue" flow — pre-fill register form from place data
 - [ ] Featured listings — pinned to top of feed (paid placement)
@@ -111,20 +124,23 @@ Status markers: `[x]` done · `[-]` in progress · `[ ]` not started
 
 ## Known Issues / Tech Debt
 
-| Area | Issue |
-|------|-------|
-| Search | OSM results limited to 20 — no pagination |
-| Search | Overpass `overpass.kumi.systems` can be slow (public instance) |
-| Auth | No password reset flow for owner email accounts |
-| Map | No cluster markers when many listings overlap |
-| Feed | No infinite scroll / pagination — all listings loaded at once |
-| Owner | No listing preview before publishing |
+| Area   | Issue                                                          | Status                                             |
+| ------ | -------------------------------------------------------------- | -------------------------------------------------- |
+| Search | OSM results limited to 20 — no pagination                      | ✅ Fixed — Load more button added                  |
+| Search | Overpass `overpass.kumi.systems` can be slow (public instance) | ✅ Mitigated — caching + server fallback           |
+| Auth   | No password reset flow for owner email accounts                | ✅ Fixed — ForgotPasswordForm + ResetPassword page |
+| Map    | No cluster markers when many listings overlap                  | ✅ Fixed — MarkerClusterGroup added                |
+| Feed   | No infinite scroll / pagination — all listings loaded at once  | ✅ Fixed — IntersectionObserver infinite scroll    |
+| Owner  | No listing preview before publishing                           | ✅ Fixed — ListingPreviewModal + Preview button    |
 
 ---
 
 ## Session Log
 
-| Date | Work |
-|------|------|
-| 2026-05-28 | OSM dual-layer search, mock data removal, GPS race condition fix |
-| Earlier | Owner-side overhaul, auth, DB schema, map, feed, search base |
+| Date       | Work                                                                    |
+| ---------- | ----------------------------------------------------------------------- |
+| 2026-06-01 | Overpass caching — 24hr localStorage cache, server fallback, 2km radius |
+| 2026-06-01 | Added ListingPreviewModal — owners can preview before publishing        |
+| 2026-06-01 | Updated tracker — marked 4 known issues as fixed                        |
+| 2026-05-28 | OSM dual-layer search, mock data removal, GPS race condition fix        |
+| Earlier    | Owner-side overhaul, auth, DB schema, map, feed, search base            |

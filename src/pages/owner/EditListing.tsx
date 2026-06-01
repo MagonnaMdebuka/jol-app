@@ -1,6 +1,6 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { X } from 'lucide-react';
+import { X, Eye } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { getListing, updateListing } from '../../services/listing.service';
 import { isSupabaseEnabled } from '../../config/env';
@@ -10,11 +10,20 @@ import Spinner from '../../components/ui/Spinner';
 import Input from '../../components/ui/Input';
 import Button from '../../components/ui/Button';
 import ImageUploader from '../../components/listings/ImageUploader';
+import ListingPreviewModal from '../../components/listings/ListingPreviewModal';
 import type { IListingWithDistance, DressCode, PriceRange } from '../../types/listing.types';
 
 const GENRE_VIBES = [
-  'Amapiano', 'House', 'Hip Hop', 'Afrobeats', 'RnB', 'Jazz',
-  'Live Music', 'Date night', 'Late night', 'Sundowner',
+  'Amapiano',
+  'House',
+  'Hip Hop',
+  'Afrobeats',
+  'RnB',
+  'Jazz',
+  'Live Music',
+  'Date night',
+  'Late night',
+  'Sundowner',
 ];
 
 const DRESS_CHIP_OPTIONS = ['Casual', 'Smart Casual', 'Formal', 'Any'];
@@ -25,7 +34,12 @@ const SELECT_CLASS =
 const MonoLabel: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <p
     className="text-nz-muted mb-2"
-    style={{ fontFamily: '"JetBrains Mono", monospace', fontSize: '9px', letterSpacing: '0.04em', fontWeight: 500 }}
+    style={{
+      fontFamily: '"JetBrains Mono", monospace',
+      fontSize: '9px',
+      letterSpacing: '0.04em',
+      fontWeight: 500,
+    }}
   >
     {children}
   </p>
@@ -62,11 +76,58 @@ const EditListing: React.FC = () => {
   const [priceRange, setPriceRange] = useState<PriceRange>('RR');
   const [special, setSpecial] = useState('');
 
+  // Preview modal
+  const [showPreview, setShowPreview] = useState(false);
+
+  const previewData = useMemo(
+    () => ({
+      type: listing?.type ?? 'event',
+      title,
+      description,
+      address,
+      images,
+      eventDate,
+      entryFee,
+      dressCode,
+      artist,
+      ageRestriction,
+      tags: selectedTags,
+      capacity,
+      cuisineType,
+      openingHours,
+      priceRange,
+      special,
+      venueName: listing?.venue_name,
+    }),
+    [
+      listing?.type,
+      listing?.venue_name,
+      title,
+      description,
+      address,
+      images,
+      eventDate,
+      entryFee,
+      dressCode,
+      artist,
+      ageRestriction,
+      selectedTags,
+      capacity,
+      cuisineType,
+      openingHours,
+      priceRange,
+      special,
+    ],
+  );
+
   useEffect(() => {
     if (!id) return;
     const load = async (): Promise<void> => {
       const data = await getListing(id);
-      if (!data) { setLoading(false); return; }
+      if (!data) {
+        setLoading(false);
+        return;
+      }
 
       if (isSupabaseEnabled() && data.owner_id !== authUser?.id) {
         toast('You do not have permission to edit this listing', 'error');
@@ -94,8 +155,8 @@ const EditListing: React.FC = () => {
       setLoading(false);
     };
     load();
-  // authUser?.id and navigate are stable refs; toast is from context
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // authUser?.id and navigate are stable refs; toast is from context
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   const toggleTag = useCallback((tag: string) => {
@@ -110,28 +171,33 @@ const EditListing: React.FC = () => {
 
   const handleSave = useCallback(async () => {
     if (!id || !listing) return;
-    if (!title.trim()) { toast('Title is required', 'error'); return; }
+    if (!title.trim()) {
+      toast('Title is required', 'error');
+      return;
+    }
     setSaving(true);
     const patch = {
       title,
       description: description || null,
       address,
       images,
-      ...(listing.type === 'event' ? {
-        event_date: eventDate || null,
-        event_end_date: eventEndDate || null,
-        entry_fee: entryFee || null,
-        dress_code: dressCode,
-        artist: artist || null,
-        age_restriction: ageRestriction || null,
-        tags: selectedTags,
-        capacity: parseInt(capacity) || null,
-      } : {
-        cuisine_type: cuisineType || null,
-        opening_hours: openingHours || null,
-        price_range: priceRange,
-        special: special || null,
-      }),
+      ...(listing.type === 'event'
+        ? {
+            event_date: eventDate || null,
+            event_end_date: eventEndDate || null,
+            entry_fee: entryFee || null,
+            dress_code: dressCode,
+            artist: artist || null,
+            age_restriction: ageRestriction || null,
+            tags: selectedTags,
+            capacity: parseInt(capacity) || null,
+          }
+        : {
+            cuisine_type: cuisineType || null,
+            opening_hours: openingHours || null,
+            price_range: priceRange,
+            special: special || null,
+          }),
     };
     const { error } = await updateListing(id, patch);
     if (error) {
@@ -142,9 +208,26 @@ const EditListing: React.FC = () => {
     }
     setSaving(false);
   }, [
-    id, listing, title, description, address, images,
-    eventDate, eventEndDate, entryFee, dressCode, artist, ageRestriction, selectedTags, capacity,
-    cuisineType, openingHours, priceRange, special, toast, navigate,
+    id,
+    listing,
+    title,
+    description,
+    address,
+    images,
+    eventDate,
+    eventEndDate,
+    entryFee,
+    dressCode,
+    artist,
+    ageRestriction,
+    selectedTags,
+    capacity,
+    cuisineType,
+    openingHours,
+    priceRange,
+    special,
+    toast,
+    navigate,
   ]);
 
   if (loading) {
@@ -173,7 +256,11 @@ const EditListing: React.FC = () => {
         </button>
         <p
           className="text-nz-muted"
-          style={{ fontFamily: '"JetBrains Mono", monospace', fontSize: '10px', letterSpacing: '0.04em' }}
+          style={{
+            fontFamily: '"JetBrains Mono", monospace',
+            fontSize: '10px',
+            letterSpacing: '0.04em',
+          }}
         >
           EDIT LISTING
         </p>
@@ -185,7 +272,11 @@ const EditListing: React.FC = () => {
       {/* Display heading */}
       <h1
         className="text-nz-text leading-[0.92] tracking-[-0.04em]"
-        style={{ fontFamily: '"Bricolage Grotesque", system-ui', fontWeight: 900, fontSize: '32px' }}
+        style={{
+          fontFamily: '"Bricolage Grotesque", system-ui',
+          fontWeight: 900,
+          fontSize: '32px',
+        }}
       >
         Edit {listing.type === 'event' ? 'Event' : 'Food Spot'}
       </h1>
@@ -196,7 +287,10 @@ const EditListing: React.FC = () => {
         {images.length > 0 && (
           <div className="flex flex-wrap gap-2 mb-3">
             {images.map((src, i) => (
-              <div key={src} className="relative h-20 w-20 rounded-[12px] overflow-hidden border border-nz-border">
+              <div
+                key={src}
+                className="relative h-20 w-20 rounded-[12px] overflow-hidden border border-nz-border"
+              >
                 <img src={src} alt="" className="h-full w-full object-cover" />
                 <button
                   onClick={() => removeImage(i)}
@@ -223,7 +317,11 @@ const EditListing: React.FC = () => {
         <div className="flex flex-col gap-1.5">
           <label
             className="text-nz-muted"
-            style={{ fontFamily: '"JetBrains Mono", monospace', fontSize: '9px', letterSpacing: '0.04em' }}
+            style={{
+              fontFamily: '"JetBrains Mono", monospace',
+              fontSize: '9px',
+              letterSpacing: '0.04em',
+            }}
           >
             DESCRIPTION ({description.length}/300)
           </label>
@@ -235,7 +333,12 @@ const EditListing: React.FC = () => {
             className="w-full bg-nz-elevated/80 border border-nz-border/60 hover:border-nz-border rounded-xl px-4 py-3 text-nz-text text-sm placeholder:text-nz-muted/60 outline-none transition-all duration-200 focus:ring-2 focus:ring-nz-accent/50 focus:border-nz-accent/40 resize-none"
           />
         </div>
-        <Input label="Address" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Street, suburb, city" />
+        <Input
+          label="Address"
+          value={address}
+          onChange={(e) => setAddress(e.target.value)}
+          placeholder="Street, suburb, city"
+        />
       </div>
 
       {/* Event details */}
@@ -243,10 +346,25 @@ const EditListing: React.FC = () => {
         <div className="flex flex-col gap-4 bg-nz-surface border border-nz-border/60 rounded-2xl p-4">
           <MonoLabel>EVENT DETAILS</MonoLabel>
           <div className="grid grid-cols-2 gap-3">
-            <Input label="Date & Time" type="datetime-local" value={eventDate} onChange={(e) => setEventDate(e.target.value)} />
-            <Input label="End Time" type="datetime-local" value={eventEndDate} onChange={(e) => setEventEndDate(e.target.value)} />
+            <Input
+              label="Date & Time"
+              type="datetime-local"
+              value={eventDate}
+              onChange={(e) => setEventDate(e.target.value)}
+            />
+            <Input
+              label="End Time"
+              type="datetime-local"
+              value={eventEndDate}
+              onChange={(e) => setEventEndDate(e.target.value)}
+            />
           </div>
-          <Input label="Entry Fee" value={entryFee} onChange={(e) => setEntryFee(e.target.value)} placeholder="e.g. R100 at the door / Free" />
+          <Input
+            label="Entry Fee"
+            value={entryFee}
+            onChange={(e) => setEntryFee(e.target.value)}
+            placeholder="e.g. R100 at the door / Free"
+          />
           <div>
             <MonoLabel>DRESS CODE</MonoLabel>
             <div className="flex flex-wrap gap-2">
@@ -266,9 +384,25 @@ const EditListing: React.FC = () => {
               ))}
             </div>
           </div>
-          <Input label="Artist / DJ" value={artist} onChange={(e) => setArtist(e.target.value)} placeholder="Optional" />
-          <Input label="Age Restriction" value={ageRestriction} onChange={(e) => setAgeRestriction(e.target.value)} placeholder="e.g. 18+" />
-          <Input label="Capacity" type="number" value={capacity} onChange={(e) => setCapacity(e.target.value)} placeholder="e.g. 200" />
+          <Input
+            label="Artist / DJ"
+            value={artist}
+            onChange={(e) => setArtist(e.target.value)}
+            placeholder="Optional"
+          />
+          <Input
+            label="Age Restriction"
+            value={ageRestriction}
+            onChange={(e) => setAgeRestriction(e.target.value)}
+            placeholder="e.g. 18+"
+          />
+          <Input
+            label="Capacity"
+            type="number"
+            value={capacity}
+            onChange={(e) => setCapacity(e.target.value)}
+            placeholder="e.g. 200"
+          />
           <div>
             <MonoLabel>GENRE / VIBE TAGS</MonoLabel>
             <div className="flex flex-wrap gap-2">
@@ -312,28 +446,62 @@ const EditListing: React.FC = () => {
           <div className="flex flex-col gap-1.5">
             <label
               className="text-nz-muted"
-              style={{ fontFamily: '"JetBrains Mono", monospace', fontSize: '9px', letterSpacing: '0.04em' }}
+              style={{
+                fontFamily: '"JetBrains Mono", monospace',
+                fontSize: '9px',
+                letterSpacing: '0.04em',
+              }}
             >
               CUISINE TYPE
             </label>
-            <select value={cuisineType} onChange={(e) => setCuisineType(e.target.value)} className={SELECT_CLASS}>
+            <select
+              value={cuisineType}
+              onChange={(e) => setCuisineType(e.target.value)}
+              className={SELECT_CLASS}
+            >
               <option value="">Select cuisine...</option>
-              {CUISINE_TYPES.map((c) => <option key={c} value={c}>{c}</option>)}
+              {CUISINE_TYPES.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
             </select>
           </div>
-          <Input label="Opening Hours" value={openingHours} onChange={(e) => setOpeningHours(e.target.value)} placeholder="e.g. Mon-Sun 10:00-22:00" />
+          <Input
+            label="Opening Hours"
+            value={openingHours}
+            onChange={(e) => setOpeningHours(e.target.value)}
+            placeholder="e.g. Mon-Sun 10:00-22:00"
+          />
           <div className="flex flex-col gap-1.5">
             <label
               className="text-nz-muted"
-              style={{ fontFamily: '"JetBrains Mono", monospace', fontSize: '9px', letterSpacing: '0.04em' }}
+              style={{
+                fontFamily: '"JetBrains Mono", monospace',
+                fontSize: '9px',
+                letterSpacing: '0.04em',
+              }}
             >
               PRICE RANGE
             </label>
-            <select value={priceRange} onChange={(e) => setPriceRange(e.target.value as PriceRange)} className={SELECT_CLASS}>
-              {PRICE_RANGES.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
+            <select
+              value={priceRange}
+              onChange={(e) => setPriceRange(e.target.value as PriceRange)}
+              className={SELECT_CLASS}
+            >
+              {PRICE_RANGES.map((p) => (
+                <option key={p.value} value={p.value}>
+                  {p.label}
+                </option>
+              ))}
             </select>
           </div>
-          <Input label="Special / Deal" value={special} onChange={(e) => setSpecial(e.target.value)} placeholder="e.g. R75 lunch special weekdays" />
+          <Input
+            label="Special / Deal"
+            value={special}
+            onChange={(e) => setSpecial(e.target.value)}
+            placeholder="e.g. R75 lunch special weekdays"
+          />
         </div>
       )}
 
@@ -342,10 +510,24 @@ const EditListing: React.FC = () => {
         <Button variant="secondary" onClick={() => navigate('/owner/dashboard')} className="flex-1">
           Cancel
         </Button>
+        <button
+          type="button"
+          onClick={() => setShowPreview(true)}
+          className="flex-1 flex items-center justify-center gap-2 py-3 bg-nz-elevated border border-nz-border rounded-2xl text-nz-text text-sm font-semibold hover:bg-nz-surface transition-colors"
+        >
+          <Eye size={16} />
+          Preview
+        </button>
         <Button onClick={handleSave} loading={saving} className="flex-1">
-          Save Changes
+          Save
         </Button>
       </div>
+
+      <ListingPreviewModal
+        open={showPreview}
+        onClose={() => setShowPreview(false)}
+        data={previewData}
+      />
     </div>
   );
 };

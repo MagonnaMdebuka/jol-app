@@ -13,6 +13,67 @@ export interface IOsmPlace {
   distance_metres: number | null;
 }
 
+// ─────────────────────────────────────────────────────────────
+// Cache Configuration
+// ─────────────────────────────────────────────────────────────
+
+const CACHE_KEY_PREFIX = 'jol-osm-';
+const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+const STALE_TTL_MS = 1 * 60 * 60 * 1000; // 1 hour — refresh in background after this
+
+interface ICacheEntry {
+  data: IOsmPlace[];
+  timestamp: number;
+}
+
+/** Round coordinate to 3 decimal places (~111m precision) for better cache hits */
+const roundCoord = (n: number): number => Math.round(n * 1000) / 1000;
+
+/** Cache key excludes limit — we always fetch 50+ and slice on read */
+const getCacheKey = (lat: number, lng: number): string =>
+  `${CACHE_KEY_PREFIX}${roundCoord(lat)},${roundCoord(lng)}`;
+
+const getCache = (key: string): ICacheEntry | null => {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    const entry: ICacheEntry = JSON.parse(raw);
+    // Expired — remove and return null
+    if (Date.now() - entry.timestamp > CACHE_TTL_MS) {
+      localStorage.removeItem(key);
+      return null;
+    }
+    return entry;
+  } catch {
+    return null;
+  }
+};
+
+const setCache = (key: string, data: IOsmPlace[]): void => {
+  try {
+    const entry: ICacheEntry = { data, timestamp: Date.now() };
+    localStorage.setItem(key, JSON.stringify(entry));
+  } catch {
+    // localStorage full or unavailable — ignore
+  }
+};
+
+const isCacheStale = (entry: ICacheEntry): boolean => Date.now() - entry.timestamp > STALE_TTL_MS;
+
+// ─────────────────────────────────────────────────────────────
+// Overpass Server Fallback
+// ─────────────────────────────────────────────────────────────
+
+const OVERPASS_SERVERS = [
+  'https://overpass.kumi.systems/api/interpreter',
+  'https://overpass-api.de/api/interpreter',
+  'https://maps.mail.ru/osm/tools/overpass/api/interpreter',
+];
+
+// ─────────────────────────────────────────────────────────────
+// Constants
+// ─────────────────────────────────────────────────────────────
+
 const EVENT_KEYWORDS = [
   'amapiano',
   'dj',
@@ -51,6 +112,13 @@ const FOOD_TYPES = new Set([
 ]);
 
 const AMENITY_PATTERN = 'restaurant|cafe|bar|fast_food|food_court|pub|bistro';
+
+// Search radius in metres (reduced from 3000 for faster queries)
+const SEARCH_RADIUS_M = 2000;
+
+// ─────────────────────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────────────────────
 
 export const isEventQuery = (query: string): boolean =>
   EVENT_KEYWORDS.some((kw) => query.toLowerCase().includes(kw));
@@ -121,7 +189,30 @@ const parseOverpassElements = (
   return places;
 };
 
-/** Overpass area search — finds food places within 3 km of a point (no name filter). */
+// ─────────────────────────────────────────────────────────────
+// Overpass Fetch with Server Fallback
+// ─────────────────────────────────────────────────────────────
+
+const fetchOverpassWithFallback = async (query: string): Promise<Response | null> => {
+  for (const server of OVERPASS_SERVERS) {
+    const url = new URL(server);
+    url.searchParams.set('data', query);
+    try {
+      const res = await fetch(url.toString(), { signal: AbortSignal.timeout(8000) });
+      if (res.ok) return res;
+      console.warn(`[OSM] ${server} returned ${res.status}, trying next...`);
+    } catch (e) {
+      console.warn(`[OSM] ${server} failed, trying next...`, e);
+    }
+  }
+  return null;
+};
+
+// ─────────────────────────────────────────────────────────────
+// Core Overpass Search (with caching)
+// ─────────────────────────────────────────────────────────────
+
+/** Overpass area search — finds food places within radius of a point. */
 export const overpassAreaSearch = async (
   centerLat: number,
   centerLng: number,
@@ -130,21 +221,85 @@ export const overpassAreaSearch = async (
   hasLoc: boolean,
   limit: number = 20,
 ): Promise<IOsmPlace[]> => {
-  const oq = `[out:json][timeout:8];(node["amenity"~"${AMENITY_PATTERN}"](around:3000,${centerLat},${centerLng});way["amenity"~"${AMENITY_PATTERN}"](around:3000,${centerLat},${centerLng}););out center ${limit};`;
-  const url = new URL('https://overpass.kumi.systems/api/interpreter');
-  url.searchParams.set('data', oq);
-  try {
-    const res = await fetch(url.toString(), { signal: AbortSignal.timeout(10000) });
-    if (!res.ok) {
-      console.warn(`[OSM] Overpass area search ${res.status}`);
-      return [];
+  const cacheKey = getCacheKey(centerLat, centerLng);
+  const cached = getCache(cacheKey);
+
+  // If we have cached data, use it
+  if (cached) {
+    // Recalculate distances based on current user position
+    const recalculated = cached.data.map((p) => ({
+      ...p,
+      distance_metres: hasLoc ? haversine(refLat, refLng, p.lat, p.lng) : null,
+    }));
+
+    // If cache is stale but not expired, refresh in background
+    if (isCacheStale(cached)) {
+      refreshCacheInBackground(centerLat, centerLng, limit, cacheKey);
     }
+
+    return recalculated.slice(0, limit);
+  }
+
+  // No cache — fetch fresh data
+  return fetchAndCacheOverpass(centerLat, centerLng, refLat, refLng, hasLoc, limit, cacheKey);
+};
+
+const fetchAndCacheOverpass = async (
+  centerLat: number,
+  centerLng: number,
+  refLat: number,
+  refLng: number,
+  hasLoc: boolean,
+  limit: number,
+  cacheKey: string,
+): Promise<IOsmPlace[]> => {
+  // Request more than needed to have buffer for cache
+  const fetchLimit = Math.max(limit, 50);
+  const oq = `[out:json][timeout:10];(node["amenity"~"${AMENITY_PATTERN}"](around:${SEARCH_RADIUS_M},${centerLat},${centerLng});way["amenity"~"${AMENITY_PATTERN}"](around:${SEARCH_RADIUS_M},${centerLat},${centerLng}););out center ${fetchLimit};`;
+
+  const res = await fetchOverpassWithFallback(oq);
+  if (!res) return [];
+
+  try {
     const d = await res.json();
-    return parseOverpassElements(d.elements, refLat, refLng, hasLoc);
+    const places = parseOverpassElements(d.elements, refLat, refLng, hasLoc);
+
+    // Cache the full result set (without distance, we recalculate on read)
+    const toCache = places.map((p) => ({ ...p, distance_metres: null }));
+    setCache(cacheKey, toCache);
+
+    return places.slice(0, limit);
   } catch {
     return [];
   }
 };
+
+const refreshCacheInBackground = (
+  centerLat: number,
+  centerLng: number,
+  limit: number,
+  cacheKey: string,
+): void => {
+  // Fire and forget — don't await
+  const fetchLimit = Math.max(limit, 50);
+  const oq = `[out:json][timeout:10];(node["amenity"~"${AMENITY_PATTERN}"](around:${SEARCH_RADIUS_M},${centerLat},${centerLng});way["amenity"~"${AMENITY_PATTERN}"](around:${SEARCH_RADIUS_M},${centerLat},${centerLng}););out center ${fetchLimit};`;
+
+  fetchOverpassWithFallback(oq)
+    .then(async (res) => {
+      if (!res) return;
+      const d = await res.json();
+      const places = parseOverpassElements(d.elements, 0, 0, false);
+      const toCache = places.map((p) => ({ ...p, distance_metres: null }));
+      setCache(cacheKey, toCache);
+    })
+    .catch(() => {
+      // Silent fail for background refresh
+    });
+};
+
+// ─────────────────────────────────────────────────────────────
+// Main Search Function
+// ─────────────────────────────────────────────────────────────
 
 export const searchOsmPlaces = async (
   query: string,
@@ -219,4 +374,25 @@ export const searchOsmPlaces = async (
   if (!coord) return [];
   const areaResults = await overpassAreaSearch(coord.lat, coord.lng, lat, lng, hasLocation);
   return areaResults.sort((a, b) => (a.distance_metres ?? 0) - (b.distance_metres ?? 0));
+};
+
+// ─────────────────────────────────────────────────────────────
+// Cache Management (for debugging / settings)
+// ─────────────────────────────────────────────────────────────
+
+/** Clear all OSM cache entries */
+export const clearOsmCache = (): void => {
+  const keys = Object.keys(localStorage).filter((k) => k.startsWith(CACHE_KEY_PREFIX));
+  keys.forEach((k) => localStorage.removeItem(k));
+};
+
+/** Get cache stats for debugging */
+export const getOsmCacheStats = (): { entries: number; sizeKB: number } => {
+  const keys = Object.keys(localStorage).filter((k) => k.startsWith(CACHE_KEY_PREFIX));
+  let totalSize = 0;
+  keys.forEach((k) => {
+    const v = localStorage.getItem(k);
+    if (v) totalSize += v.length * 2; // UTF-16, 2 bytes per char
+  });
+  return { entries: keys.length, sizeKB: Math.round(totalSize / 1024) };
 };

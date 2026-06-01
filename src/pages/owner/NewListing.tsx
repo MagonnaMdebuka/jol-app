@@ -1,6 +1,6 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { X, Calendar, UtensilsCrossed } from 'lucide-react';
+import { X, Calendar, UtensilsCrossed, Eye } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { createListing } from '../../services/listing.service';
 import { getOwnerVenues } from '../../services/venue.service';
@@ -10,12 +10,21 @@ import { useToast } from '../../components/ui/Toast';
 import Input from '../../components/ui/Input';
 import Button from '../../components/ui/Button';
 import ImageUploader from '../../components/listings/ImageUploader';
+import ListingPreviewModal from '../../components/listings/ListingPreviewModal';
 import type { IVenue } from '../../types/venue.types';
 import type { ListingType, DressCode, PriceRange } from '../../types/listing.types';
 
 const GENRE_VIBES = [
-  'Amapiano', 'House', 'Hip Hop', 'Afrobeats', 'RnB', 'Jazz',
-  'Live Music', 'Date night', 'Late night', 'Sundowner',
+  'Amapiano',
+  'House',
+  'Hip Hop',
+  'Afrobeats',
+  'RnB',
+  'Jazz',
+  'Live Music',
+  'Date night',
+  'Late night',
+  'Sundowner',
 ];
 
 const DRESS_CHIP_OPTIONS = ['Casual', 'Smart Casual', 'Formal', 'Any'];
@@ -26,7 +35,12 @@ const SELECT_CLASS =
 const MonoLabel: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <p
     className="text-nz-muted mb-2"
-    style={{ fontFamily: '"JetBrains Mono", monospace', fontSize: '9px', letterSpacing: '0.04em', fontWeight: 500 }}
+    style={{
+      fontFamily: '"JetBrains Mono", monospace',
+      fontSize: '9px',
+      letterSpacing: '0.04em',
+      fontWeight: 500,
+    }}
   >
     {children}
   </p>
@@ -63,6 +77,52 @@ const NewListing: React.FC = () => {
   const [openingHours, setOpeningHours] = useState('');
   const [priceRange, setPriceRange] = useState<PriceRange>('RR');
   const [special, setSpecial] = useState('');
+
+  // Preview modal
+  const [showPreview, setShowPreview] = useState(false);
+
+  const selectedVenue = useMemo(() => venues.find((v) => v.id === venueId), [venues, venueId]);
+
+  const previewData = useMemo(
+    () => ({
+      type,
+      title,
+      description,
+      address,
+      images,
+      eventDate,
+      entryFee,
+      dressCode,
+      artist,
+      ageRestriction,
+      tags: selectedTags,
+      capacity,
+      cuisineType,
+      openingHours,
+      priceRange,
+      special,
+      venueName: selectedVenue?.name,
+    }),
+    [
+      type,
+      title,
+      description,
+      address,
+      images,
+      eventDate,
+      entryFee,
+      dressCode,
+      artist,
+      ageRestriction,
+      selectedTags,
+      capacity,
+      cuisineType,
+      openingHours,
+      priceRange,
+      special,
+      selectedVenue?.name,
+    ],
+  );
 
   useEffect(() => {
     getOwnerVenues(ownerId).then((v) => {
@@ -106,7 +166,7 @@ const NewListing: React.FC = () => {
       artist: type === 'event' ? artist || null : null,
       age_restriction: type === 'event' ? ageRestriction || null : null,
       tags: type === 'event' ? selectedTags : null,
-      capacity: type === 'event' ? (parseInt(capacity) || null) : null,
+      capacity: type === 'event' ? parseInt(capacity) || null : null,
       cuisine_type: type === 'food' ? cuisineType || null : null,
       opening_hours: type === 'food' ? openingHours || null : null,
       price_range: type === 'food' ? priceRange : null,
@@ -124,10 +184,28 @@ const NewListing: React.FC = () => {
     }
     setLoading(false);
   }, [
-    title, description, address, type, venueId, ownerId, images,
-    eventDate, eventEndDate, entryFee, dressCode, artist, ageRestriction, selectedTags, capacity,
-    cuisineType, openingHours, priceRange, special,
-    getVenueLocation, toast, navigate,
+    title,
+    description,
+    address,
+    type,
+    venueId,
+    ownerId,
+    images,
+    eventDate,
+    eventEndDate,
+    entryFee,
+    dressCode,
+    artist,
+    ageRestriction,
+    selectedTags,
+    capacity,
+    cuisineType,
+    openingHours,
+    priceRange,
+    special,
+    getVenueLocation,
+    toast,
+    navigate,
   ]);
 
   return (
@@ -144,15 +222,15 @@ const NewListing: React.FC = () => {
         </button>
         <p
           className="text-nz-muted"
-          style={{ fontFamily: '"JetBrains Mono", monospace', fontSize: '10px', letterSpacing: '0.04em' }}
+          style={{
+            fontFamily: '"JetBrains Mono", monospace',
+            fontSize: '10px',
+            letterSpacing: '0.04em',
+          }}
         >
           NEW LISTING
         </p>
-        <button
-          type="button"
-          onClick={handleSubmit}
-          className="text-nz-accent text-sm font-bold"
-        >
+        <button type="button" onClick={handleSubmit} className="text-nz-accent text-sm font-bold">
           Publish
         </button>
       </div>
@@ -160,27 +238,33 @@ const NewListing: React.FC = () => {
       {/* Display headline */}
       <h1
         className="text-nz-text leading-[0.92] tracking-[-0.04em]"
-        style={{ fontFamily: '"Bricolage Grotesque", system-ui', fontWeight: 900, fontSize: '32px' }}
+        style={{
+          fontFamily: '"Bricolage Grotesque", system-ui',
+          fontWeight: 900,
+          fontSize: '32px',
+        }}
       >
         What's the occasion?
       </h1>
 
       {/* Type toggle — 2 large card buttons */}
       <div className="grid grid-cols-2 gap-3">
-        {([
-          {
-            value: 'event' as const,
-            icon: <Calendar size={20} />,
-            title: 'Event',
-            sub: 'Party, DJ night, live music',
-          },
-          {
-            value: 'food' as const,
-            icon: <UtensilsCrossed size={20} />,
-            title: 'Food Spot',
-            sub: 'Restaurant, market, cafe',
-          },
-        ] as const).map(({ value, icon, title: t, sub }) => (
+        {(
+          [
+            {
+              value: 'event' as const,
+              icon: <Calendar size={20} />,
+              title: 'Event',
+              sub: 'Party, DJ night, live music',
+            },
+            {
+              value: 'food' as const,
+              icon: <UtensilsCrossed size={20} />,
+              title: 'Food Spot',
+              sub: 'Restaurant, market, cafe',
+            },
+          ] as const
+        ).map(({ value, icon, title: t, sub }) => (
           <button
             key={value}
             type="button"
@@ -205,15 +289,18 @@ const NewListing: React.FC = () => {
             className={`
               flex flex-col items-start gap-2 p-4 rounded-2xl border text-left
               transition-all duration-200 active:scale-[0.98]
-              ${type === value
-                ? 'bg-nz-accent/10 border-nz-accent/50'
-                : 'bg-nz-surface border-nz-border hover:border-nz-muted/40'
+              ${
+                type === value
+                  ? 'bg-nz-accent/10 border-nz-accent/50'
+                  : 'bg-nz-surface border-nz-border hover:border-nz-muted/40'
               }
             `}
           >
             <span className={type === value ? 'text-nz-accent' : 'text-nz-muted'}>{icon}</span>
             <div>
-              <p className={`font-bold text-sm ${type === value ? 'text-nz-text' : 'text-nz-muted'}`}>
+              <p
+                className={`font-bold text-sm ${type === value ? 'text-nz-text' : 'text-nz-muted'}`}
+              >
                 {t}
               </p>
               <p className="text-nz-subtle text-xs mt-0.5">{sub}</p>
@@ -241,13 +328,23 @@ const NewListing: React.FC = () => {
           <div className="flex flex-col gap-1.5">
             <label
               className="text-nz-muted"
-              style={{ fontFamily: '"JetBrains Mono", monospace', fontSize: '9px', letterSpacing: '0.04em' }}
+              style={{
+                fontFamily: '"JetBrains Mono", monospace',
+                fontSize: '9px',
+                letterSpacing: '0.04em',
+              }}
             >
               VENUE
             </label>
-            <select value={venueId} onChange={(e) => setVenueId(e.target.value)} className={SELECT_CLASS}>
+            <select
+              value={venueId}
+              onChange={(e) => setVenueId(e.target.value)}
+              className={SELECT_CLASS}
+            >
               {venues.map((v) => (
-                <option key={v.id} value={v.id}>{v.name}</option>
+                <option key={v.id} value={v.id}>
+                  {v.name}
+                </option>
               ))}
             </select>
           </div>
@@ -269,7 +366,11 @@ const NewListing: React.FC = () => {
         <div className="flex flex-col gap-1.5">
           <label
             className="text-nz-muted"
-            style={{ fontFamily: '"JetBrains Mono", monospace', fontSize: '9px', letterSpacing: '0.04em' }}
+            style={{
+              fontFamily: '"JetBrains Mono", monospace',
+              fontSize: '9px',
+              letterSpacing: '0.04em',
+            }}
           >
             DESCRIPTION ({description.length}/300)
           </label>
@@ -296,11 +397,26 @@ const NewListing: React.FC = () => {
           <MonoLabel>EVENT DETAILS</MonoLabel>
 
           <div className="grid grid-cols-2 gap-3">
-            <Input label="Date & Time" type="datetime-local" value={eventDate} onChange={(e) => setEventDate(e.target.value)} />
-            <Input label="End Time" type="datetime-local" value={eventEndDate} onChange={(e) => setEventEndDate(e.target.value)} />
+            <Input
+              label="Date & Time"
+              type="datetime-local"
+              value={eventDate}
+              onChange={(e) => setEventDate(e.target.value)}
+            />
+            <Input
+              label="End Time"
+              type="datetime-local"
+              value={eventEndDate}
+              onChange={(e) => setEventEndDate(e.target.value)}
+            />
           </div>
 
-          <Input label="Entry Fee" value={entryFee} onChange={(e) => setEntryFee(e.target.value)} placeholder="e.g. R100 at the door / Free" />
+          <Input
+            label="Entry Fee"
+            value={entryFee}
+            onChange={(e) => setEntryFee(e.target.value)}
+            placeholder="e.g. R100 at the door / Free"
+          />
 
           <div>
             <MonoLabel>DRESS CODE</MonoLabel>
@@ -313,9 +429,10 @@ const NewListing: React.FC = () => {
                   className={`
                     px-3 py-1.5 rounded-full text-xs font-semibold border
                     transition-all duration-200 active:scale-95
-                    ${dressCode === d
-                      ? 'bg-nz-text text-nz-bg border-transparent'
-                      : 'border-nz-border text-nz-muted hover:text-nz-text'
+                    ${
+                      dressCode === d
+                        ? 'bg-nz-text text-nz-bg border-transparent'
+                        : 'border-nz-border text-nz-muted hover:text-nz-text'
                     }
                   `}
                 >
@@ -325,9 +442,25 @@ const NewListing: React.FC = () => {
             </div>
           </div>
 
-          <Input label="Artist / DJ" value={artist} onChange={(e) => setArtist(e.target.value)} placeholder="Optional" />
-          <Input label="Age Restriction" value={ageRestriction} onChange={(e) => setAgeRestriction(e.target.value)} placeholder="e.g. 18+" />
-          <Input label="Capacity" type="number" value={capacity} onChange={(e) => setCapacity(e.target.value)} placeholder="e.g. 200" />
+          <Input
+            label="Artist / DJ"
+            value={artist}
+            onChange={(e) => setArtist(e.target.value)}
+            placeholder="Optional"
+          />
+          <Input
+            label="Age Restriction"
+            value={ageRestriction}
+            onChange={(e) => setAgeRestriction(e.target.value)}
+            placeholder="e.g. 18+"
+          />
+          <Input
+            label="Capacity"
+            type="number"
+            value={capacity}
+            onChange={(e) => setCapacity(e.target.value)}
+            placeholder="e.g. 200"
+          />
 
           <div>
             <MonoLabel>GENRE / VIBE TAGS</MonoLabel>
@@ -340,9 +473,10 @@ const NewListing: React.FC = () => {
                   className={`
                     px-3 py-1.5 rounded-full text-xs font-semibold border
                     transition-all duration-200 active:scale-95
-                    ${selectedTags.includes(tag)
-                      ? 'bg-nz-accent text-white border-transparent'
-                      : 'border-nz-border text-nz-muted hover:text-nz-text'
+                    ${
+                      selectedTags.includes(tag)
+                        ? 'bg-nz-accent text-white border-transparent'
+                        : 'border-nz-border text-nz-muted hover:text-nz-text'
                     }
                   `}
                 >
@@ -357,9 +491,10 @@ const NewListing: React.FC = () => {
                   className={`
                     px-3 py-1.5 rounded-full text-xs font-semibold border
                     transition-all duration-200 active:scale-95
-                    ${selectedTags.includes(tag)
-                      ? 'bg-nz-accent text-white border-transparent'
-                      : 'border-nz-border text-nz-muted hover:text-nz-text'
+                    ${
+                      selectedTags.includes(tag)
+                        ? 'bg-nz-accent text-white border-transparent'
+                        : 'border-nz-border text-nz-muted hover:text-nz-text'
                     }
                   `}
                 >
@@ -379,37 +514,88 @@ const NewListing: React.FC = () => {
           <div className="flex flex-col gap-1.5">
             <label
               className="text-nz-muted"
-              style={{ fontFamily: '"JetBrains Mono", monospace', fontSize: '9px', letterSpacing: '0.04em' }}
+              style={{
+                fontFamily: '"JetBrains Mono", monospace',
+                fontSize: '9px',
+                letterSpacing: '0.04em',
+              }}
             >
               CUISINE TYPE
             </label>
-            <select value={cuisineType} onChange={(e) => setCuisineType(e.target.value)} className={SELECT_CLASS}>
+            <select
+              value={cuisineType}
+              onChange={(e) => setCuisineType(e.target.value)}
+              className={SELECT_CLASS}
+            >
               <option value="">Select cuisine…</option>
-              {CUISINE_TYPES.map((c) => <option key={c} value={c}>{c}</option>)}
+              {CUISINE_TYPES.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
             </select>
           </div>
 
-          <Input label="Opening Hours" value={openingHours} onChange={(e) => setOpeningHours(e.target.value)} placeholder="e.g. Mon–Sun 10:00–22:00" />
+          <Input
+            label="Opening Hours"
+            value={openingHours}
+            onChange={(e) => setOpeningHours(e.target.value)}
+            placeholder="e.g. Mon–Sun 10:00–22:00"
+          />
 
           <div className="flex flex-col gap-1.5">
             <label
               className="text-nz-muted"
-              style={{ fontFamily: '"JetBrains Mono", monospace', fontSize: '9px', letterSpacing: '0.04em' }}
+              style={{
+                fontFamily: '"JetBrains Mono", monospace',
+                fontSize: '9px',
+                letterSpacing: '0.04em',
+              }}
             >
               PRICE RANGE
             </label>
-            <select value={priceRange} onChange={(e) => setPriceRange(e.target.value as PriceRange)} className={SELECT_CLASS}>
-              {PRICE_RANGES.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
+            <select
+              value={priceRange}
+              onChange={(e) => setPriceRange(e.target.value as PriceRange)}
+              className={SELECT_CLASS}
+            >
+              {PRICE_RANGES.map((p) => (
+                <option key={p.value} value={p.value}>
+                  {p.label}
+                </option>
+              ))}
             </select>
           </div>
 
-          <Input label="Special / Deal" value={special} onChange={(e) => setSpecial(e.target.value)} placeholder="e.g. R75 lunch special weekdays" />
+          <Input
+            label="Special / Deal"
+            value={special}
+            onChange={(e) => setSpecial(e.target.value)}
+            placeholder="e.g. R75 lunch special weekdays"
+          />
         </div>
       )}
 
-      <Button onClick={handleSubmit} loading={loading} size="lg" className="w-full">
-        Publish Listing
-      </Button>
+      {/* Action buttons */}
+      <div className="flex gap-3">
+        <button
+          type="button"
+          onClick={() => setShowPreview(true)}
+          className="flex-1 flex items-center justify-center gap-2 py-3.5 bg-nz-elevated border border-nz-border rounded-2xl text-nz-text text-sm font-semibold hover:bg-nz-surface transition-colors"
+        >
+          <Eye size={16} />
+          Preview
+        </button>
+        <Button onClick={handleSubmit} loading={loading} size="lg" className="flex-1">
+          Publish
+        </Button>
+      </div>
+
+      <ListingPreviewModal
+        open={showPreview}
+        onClose={() => setShowPreview(false)}
+        data={previewData}
+      />
     </div>
   );
 };
