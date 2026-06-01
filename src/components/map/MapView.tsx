@@ -2,7 +2,6 @@ import React, { useCallback, useMemo } from 'react';
 import { MapContainer, TileLayer, Marker, Tooltip } from 'react-leaflet';
 import MarkerClusterGroup from 'react-leaflet-cluster';
 import L from 'leaflet';
-import 'leaflet.markercluster';
 import { GAUTENG_CENTER, DEFAULT_ZOOM } from '../../constants/mapConfig';
 import type { IListingWithDistance } from '../../types/listing.types';
 
