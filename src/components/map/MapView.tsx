@@ -5,7 +5,11 @@ import L from 'leaflet';
 import { GAUTENG_CENTER, DEFAULT_ZOOM } from '../../constants/mapConfig';
 import type { IListingWithDistance } from '../../types/listing.types';
 
-const createClusterIcon = (cluster: L.MarkerCluster) => {
+interface IMarkerCluster {
+  getChildCount(): number;
+}
+
+const createClusterIcon = (cluster: IMarkerCluster) => {
   const count = cluster.getChildCount();
   return L.divIcon({
     html: `<div class="jol-cluster">${count}</div>`,
