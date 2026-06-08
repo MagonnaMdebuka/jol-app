@@ -12,12 +12,17 @@ import Spinner from '../components/ui/Spinner';
 import { useSaved } from '../contexts/SavedContext';
 import type { IListingWithDistance } from '../types/listing.types';
 
-const fmtDistance = (m: number): string =>
-  m < 1000 ? `${m}m` : `${(m / 1000).toFixed(1)} km`;
+const fmtDistance = (m: number): string => (m < 1000 ? `${m}m` : `${(m / 1000).toFixed(1)} km`);
 
 const DiscoveryMap: React.FC = () => {
   const { filteredListings, loading, filters, userLat, userLng } = useListings();
-  const nearbyListings = useNearbyListings(filteredListings, userLat, userLng, filters.radius);
+  const nearbyListings = useNearbyListings(
+    filteredListings,
+    userLat,
+    userLng,
+    filters.radius,
+    filters.sortBy,
+  );
   const [selected, setSelected] = useState<IListingWithDistance | null>(null);
   const navigate = useNavigate();
   const { isSaved, toggleSave } = useSaved();
@@ -128,7 +133,9 @@ const DiscoveryMap: React.FC = () => {
                 <p className="text-nz-muted text-xs mt-0.5">{selected.venue_name}</p>
               )}
               {selected.when_chip && (
-                <p className="text-nz-accent text-[11px] font-semibold mt-0.5">{selected.when_chip}</p>
+                <p className="text-nz-accent text-[11px] font-semibold mt-0.5">
+                  {selected.when_chip}
+                </p>
               )}
             </div>
             <button
@@ -138,9 +145,7 @@ const DiscoveryMap: React.FC = () => {
             >
               <Heart
                 size={15}
-                className={
-                  isSaved(selected.id) ? 'text-nz-accent fill-nz-accent' : 'text-nz-muted'
-                }
+                className={isSaved(selected.id) ? 'text-nz-accent fill-nz-accent' : 'text-nz-muted'}
               />
             </button>
           </div>

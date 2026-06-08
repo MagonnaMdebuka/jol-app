@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import AuthProvider from './contexts/AuthContext';
 import ListingsProvider from './contexts/ListingsContext';
 import SavedProvider from './contexts/SavedContext';
+import InterestedProvider from './contexts/InterestedContext';
 import ToastProvider from './components/ui/Toast';
 import AppShell from './components/layout/AppShell';
 import OwnerShell from './components/layout/OwnerShell';
@@ -36,37 +37,39 @@ const App: React.FC = () => (
       <AuthProvider>
         <ListingsProvider>
           <SavedProvider>
-            <Suspense fallback={<PageSpinner />}>
-              <Routes>
-                <Route element={<AppShell />}>
-                  <Route path="/" element={<DiscoveryMap />} />
-                  <Route path="/feed" element={<Feed />} />
-                  <Route path="/listing/:id" element={<ListingDetail />} />
-                  <Route path="/search" element={<Search />} />
-                  <Route path="/saved" element={<Saved />} />
-                  <Route path="/sign-in" element={<SignIn />} />
-                </Route>
+            <InterestedProvider>
+              <Suspense fallback={<PageSpinner />}>
+                <Routes>
+                  <Route element={<AppShell />}>
+                    <Route path="/" element={<DiscoveryMap />} />
+                    <Route path="/feed" element={<Feed />} />
+                    <Route path="/listing/:id" element={<ListingDetail />} />
+                    <Route path="/search" element={<Search />} />
+                    <Route path="/saved" element={<Saved />} />
+                    <Route path="/sign-in" element={<SignIn />} />
+                  </Route>
 
-                <Route path="/owner/register" element={<OwnerRegister />} />
-                <Route path="/owner/login" element={<OwnerLogin />} />
-                <Route path="/reset-password" element={<ResetPassword />} />
+                  <Route path="/owner/register" element={<OwnerRegister />} />
+                  <Route path="/owner/login" element={<OwnerLogin />} />
+                  <Route path="/reset-password" element={<ResetPassword />} />
 
-                <Route
-                  element={
-                    <AuthGuard>
-                      <OwnerShell />
-                    </AuthGuard>
-                  }
-                >
-                  <Route path="/owner/dashboard" element={<Dashboard />} />
-                  <Route path="/owner/venue/setup" element={<VenueSetup />} />
-                  <Route path="/owner/listings/new" element={<NewListing />} />
-                  <Route path="/owner/listings/:id/edit" element={<EditListing />} />
-                </Route>
+                  <Route
+                    element={
+                      <AuthGuard>
+                        <OwnerShell />
+                      </AuthGuard>
+                    }
+                  >
+                    <Route path="/owner/dashboard" element={<Dashboard />} />
+                    <Route path="/owner/venue/setup" element={<VenueSetup />} />
+                    <Route path="/owner/listings/new" element={<NewListing />} />
+                    <Route path="/owner/listings/:id/edit" element={<EditListing />} />
+                  </Route>
 
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </Suspense>
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </Suspense>
+            </InterestedProvider>
           </SavedProvider>
         </ListingsProvider>
       </AuthProvider>

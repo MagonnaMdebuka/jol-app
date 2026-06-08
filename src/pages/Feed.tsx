@@ -41,7 +41,13 @@ const SectionHeader: React.FC<ISectionHeaderProps> = ({ title, onSeeAll }) => (
 
 const Feed: React.FC = () => {
   const { filteredListings, loading, filters, userLat, userLng } = useListings();
-  const nearbyListings = useNearbyListings(filteredListings, userLat, userLng, filters.radius);
+  const nearbyListings = useNearbyListings(
+    filteredListings,
+    userLat,
+    userLng,
+    filters.radius,
+    filters.sortBy,
+  );
   const navigate = useNavigate();
   const [visibleCount, setVisibleCount] = useState(INITIAL_PAGE_SIZE);
   const sentinelRef = useRef<HTMLDivElement>(null);
