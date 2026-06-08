@@ -38,6 +38,7 @@ export interface IListing {
   vibe?: string[];
   when_chip?: string;
   save_count?: number;
+  interested_count?: number;
 }
 
 // Extended type returned by the get_nearby_listings RPC

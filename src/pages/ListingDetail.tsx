@@ -1,9 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import {
-  ArrowLeft, Heart, Share2, MapPin,
-  ShieldCheck, ExternalLink,
-} from 'lucide-react';
+import { ArrowLeft, Heart, Share2, MapPin, ShieldCheck, ExternalLink, Star } from 'lucide-react';
 import { MapContainer, TileLayer, Marker } from 'react-leaflet';
 import { getListing, incrementViewCount } from '../services/listing.service';
 import type { IListingWithDistance } from '../types/listing.types';
@@ -12,6 +9,8 @@ import Spinner from '../components/ui/Spinner';
 import Button from '../components/ui/Button';
 import ReportButton from '../components/listings/ReportButton';
 import { useSaved } from '../contexts/SavedContext';
+import { useInterested } from '../contexts/InterestedContext';
+import { useAuth } from '../contexts/AuthContext';
 
 const fmtDate = (s: string): string =>
   new Date(s).toLocaleDateString('en-ZA', {
@@ -33,12 +32,18 @@ interface IFactRowProps {
 const FactRow: React.FC<IFactRowProps> = ({ label, value, accent }) => (
   <div
     className={`rounded-2xl px-4 py-3 flex flex-col gap-0.5 ${
-      accent ? 'bg-nz-accent-soft border border-nz-accent/30' : 'bg-nz-surface border border-nz-border'
+      accent
+        ? 'bg-nz-accent-soft border border-nz-accent/30'
+        : 'bg-nz-surface border border-nz-border'
     }`}
   >
     <span
       className="text-nz-muted"
-      style={{ fontFamily: '"JetBrains Mono", monospace', fontSize: '9px', letterSpacing: '0.04em' }}
+      style={{
+        fontFamily: '"JetBrains Mono", monospace',
+        fontSize: '9px',
+        letterSpacing: '0.04em',
+      }}
     >
       {label.toUpperCase()}
     </span>
@@ -54,13 +59,17 @@ const ListingDetail: React.FC = () => {
   const [listing, setListing] = useState<IListingWithDistance | null>(null);
   const [loading, setLoading] = useState(true);
   const [photoIndex, setPhotoIndex] = useState(0);
+  const [localInterestedCount, setLocalInterestedCount] = useState<number>(0);
   const { isSaved, toggleSave } = useSaved();
+  const { isInterested, toggleInterested } = useInterested();
+  const { isGuest } = useAuth();
 
   useEffect(() => {
     if (!id) return;
     const load = async (): Promise<void> => {
       const data = await getListing(id);
       setListing(data);
+      setLocalInterestedCount(data?.interested_count ?? 0);
       setLoading(false);
     };
     load();
@@ -72,10 +81,31 @@ const ListingDetail: React.FC = () => {
     if (listing) toggleSave(listing.id);
   }, [listing, toggleSave]);
 
+  const handleShare = useCallback(async () => {
+    if (!listing) return;
+    const shareData = {
+      title: listing.title,
+      text: `Check out ${listing.title} at ${listing.venue_name ?? listing.address} — via Jol`,
+      url: window.location.href,
+    };
+
+    if (navigator.share) {
+      try {
+        await navigator.share(shareData);
+      } catch {
+        // User cancelled or share failed silently
+      }
+    } else {
+      // Fallback: WhatsApp
+      const text = encodeURIComponent(`${shareData.text} ${shareData.url}`);
+      window.open(`https://wa.me/?text=${text}`, '_blank');
+    }
+  }, [listing]);
+
   const handleWhatsApp = useCallback(() => {
     if (!listing) return;
     const text = encodeURIComponent(
-      `Check out ${listing.title} at ${listing.address} — via Jol`,
+      `Check out ${listing.title} at ${listing.address} — via Jol ${window.location.href}`,
     );
     window.open(`https://wa.me/?text=${text}`, '_blank');
   }, [listing]);
@@ -85,6 +115,17 @@ const ListingDetail: React.FC = () => {
     const { lat, lng } = listing.location;
     window.open(`https://maps.google.com/?q=${lat},${lng}`, '_blank');
   }, [listing]);
+
+  const handleInterested = useCallback(async () => {
+    if (!listing) return;
+    if (isGuest) {
+      navigate('/sign-in');
+      return;
+    }
+    const wasInterested = isInterested(listing.id);
+    setLocalInterestedCount((prev) => (wasInterested ? Math.max(0, prev - 1) : prev + 1));
+    await toggleInterested(listing.id);
+  }, [listing, isGuest, isInterested, toggleInterested, navigate]);
 
   if (loading) {
     return (
@@ -158,9 +199,9 @@ const ListingDetail: React.FC = () => {
             <Heart size={16} className={saved ? 'text-nz-accent fill-nz-accent' : 'text-white'} />
           </button>
           <button
-            onClick={handleWhatsApp}
+            onClick={handleShare}
             className="w-10 h-10 rounded-full bg-black/50 backdrop-blur-md border border-white/10 flex items-center justify-center text-white transition-all duration-200"
-            aria-label="Share via WhatsApp"
+            aria-label="Share"
           >
             <Share2 size={16} />
           </button>
@@ -185,9 +226,7 @@ const ListingDetail: React.FC = () => {
         <div className="absolute bottom-0 left-0 right-0 px-5 pb-5 pt-16">
           <div className="flex items-center gap-2 mb-2">
             <Badge variant={listing.type} />
-            {listing.status === 'active' && (
-              <Badge variant="active">Verified</Badge>
-            )}
+            {listing.status === 'active' && <Badge variant="active">Verified</Badge>}
           </div>
           <h1
             className="text-white leading-[0.92] tracking-[-0.04em] mb-1"
@@ -222,39 +261,45 @@ const ListingDetail: React.FC = () => {
         {/* Fact grid */}
         {isEvent ? (
           <div className="grid grid-cols-2 gap-2">
-            {listing.event_date && (
-              <FactRow label="When" value={fmtDate(listing.event_date)} />
-            )}
+            {listing.event_date && <FactRow label="When" value={fmtDate(listing.event_date)} />}
             {listing.event_date && (
               <FactRow
                 label="Time"
                 value={`${fmtTime(listing.event_date)}${listing.event_end_date ? ` – ${fmtTime(listing.event_end_date)}` : ''}`}
               />
             )}
-            {listing.entry_fee && (
-              <FactRow label="Entry fee" value={listing.entry_fee} accent />
-            )}
-            {listing.dress_code && (
-              <FactRow label="Dress code" value={listing.dress_code} />
-            )}
+            {listing.entry_fee && <FactRow label="Entry fee" value={listing.entry_fee} accent />}
+            {listing.dress_code && <FactRow label="Dress code" value={listing.dress_code} />}
             {listing.artist && <FactRow label="Artist" value={listing.artist} />}
-            {listing.age_restriction && (
-              <FactRow label="Age" value={listing.age_restriction} />
-            )}
+            {listing.age_restriction && <FactRow label="Age" value={listing.age_restriction} />}
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-2">
-            {listing.opening_hours && (
-              <FactRow label="Hours" value={listing.opening_hours} />
-            )}
+            {listing.opening_hours && <FactRow label="Hours" value={listing.opening_hours} />}
             {listing.price_range && (
               <FactRow label="Price range" value={listing.price_range} accent />
             )}
-            {listing.cuisine_type && (
-              <FactRow label="Cuisine" value={listing.cuisine_type} />
-            )}
+            {listing.cuisine_type && <FactRow label="Cuisine" value={listing.cuisine_type} />}
             {listing.special && <FactRow label="Special" value={listing.special} />}
           </div>
+        )}
+
+        {/* Interested button for events */}
+        {isEvent && (
+          <button
+            onClick={handleInterested}
+            className={`flex items-center justify-center gap-2 px-4 py-3 rounded-2xl border transition-all ${
+              isInterested(listing.id)
+                ? 'bg-nz-accent/20 border-nz-accent/40 text-nz-accent'
+                : 'bg-nz-surface border-nz-border text-nz-muted hover:text-nz-text'
+            }`}
+          >
+            <Star size={16} className={isInterested(listing.id) ? 'fill-nz-accent' : ''} />
+            <span className="font-semibold text-sm">
+              {isInterested(listing.id) ? 'Interested' : 'Interested'}
+              {localInterestedCount > 0 && ` · ${localInterestedCount}`}
+            </span>
+          </button>
         )}
 
         {/* Description */}
@@ -342,8 +387,8 @@ const ListingDetail: React.FC = () => {
         >
           <ShieldCheck size={16} className="text-nz-accent shrink-0 mt-0.5" />
           <p className="text-xs leading-relaxed" style={{ color: '#ffb88a' }}>
-            <span className="font-bold text-nz-text">Pay at the door.</span>{' '}
-            Jol doesn't sell tickets — just find the spot.
+            <span className="font-bold text-nz-text">Pay at the door.</span> Jol doesn't sell
+            tickets — just find the spot.
           </p>
         </div>
 

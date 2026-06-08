@@ -12,9 +12,12 @@ import type { IListingWithDistance } from '../types/listing.types';
 import type { VibeFilterId } from '../constants/categories';
 import { useGeolocation } from '../hooks/useGeolocation';
 
+export type SortBy = 'nearest' | 'latest';
+
 interface IListingFilters {
   vibe: VibeFilterId;
   radius: number;
+  sortBy: SortBy;
 }
 
 interface IListingsContext {
@@ -27,7 +30,7 @@ interface IListingsContext {
   userLng: number | null;
 }
 
-const DEFAULT_FILTERS: IListingFilters = { vibe: 'all', radius: 20000 };
+const DEFAULT_FILTERS: IListingFilters = { vibe: 'all', radius: 20000, sortBy: 'nearest' };
 
 const ListingsContext = createContext<IListingsContext | null>(null);
 
@@ -76,8 +79,7 @@ const applyClientFilters = (
     case 'free':
       return active.filter(
         (l) =>
-          l.type !== 'food' &&
-          (l.entry_fee === null || l.entry_fee.toLowerCase().includes('free')),
+          l.type !== 'food' && (l.entry_fee === null || l.entry_fee.toLowerCase().includes('free')),
       );
     case 'chill':
       return active.filter((l) => l.vibe?.includes('Chill'));
@@ -114,7 +116,15 @@ const ListingsProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
 
   return (
     <ListingsContext.Provider
-      value={{ listings, filteredListings, filters, setFilters, loading, userLat: lat, userLng: lng }}
+      value={{
+        listings,
+        filteredListings,
+        filters,
+        setFilters,
+        loading,
+        userLat: lat,
+        userLng: lng,
+      }}
     >
       {children}
     </ListingsContext.Provider>

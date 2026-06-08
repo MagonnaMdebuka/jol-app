@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import type { IListingWithDistance } from '../types/listing.types';
+import type { SortBy } from '../contexts/ListingsContext';
 import { GAUTENG_CENTER } from '../constants/mapConfig';
 
 const haversine = (lat1: number, lng1: number, lat2: number, lng2: number): number => {
@@ -8,9 +9,7 @@ const haversine = (lat1: number, lng1: number, lat2: number, lng2: number): numb
   const dLng = ((lng2 - lng1) * Math.PI) / 180;
   const a =
     Math.sin(dLat / 2) ** 2 +
-    Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLng / 2) ** 2;
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 };
 
@@ -19,17 +18,24 @@ export const useNearbyListings = (
   userLat: number | null,
   userLng: number | null,
   radiusMetres: number,
+  sortBy: SortBy = 'nearest',
 ): IListingWithDistance[] => {
   return useMemo(() => {
     const centerLat = userLat ?? GAUTENG_CENTER.lat;
     const centerLng = userLng ?? GAUTENG_CENTER.lng;
 
-    return listings
+    const withDistance = listings
       .map((l) => ({
         ...l,
         distance_metres: haversine(centerLat, centerLng, l.location.lat, l.location.lng),
       }))
-      .filter((l) => l.distance_metres <= radiusMetres)
-      .sort((a, b) => a.distance_metres - b.distance_metres);
-  }, [listings, userLat, userLng, radiusMetres]);
+      .filter((l) => l.distance_metres <= radiusMetres);
+
+    if (sortBy === 'latest') {
+      return withDistance.sort(
+        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+      );
+    }
+    return withDistance.sort((a, b) => a.distance_metres - b.distance_metres);
+  }, [listings, userLat, userLng, radiusMetres, sortBy]);
 };
