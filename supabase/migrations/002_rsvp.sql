@@ -74,7 +74,10 @@ CREATE POLICY "interested_listings: own"
 
 -- ─────────────────────────────────────────────────────────────
 -- Update get_nearby_listings RPC to include interested_count
+-- Must DROP first because return type is changing (adding interested_count)
 -- ─────────────────────────────────────────────────────────────
+DROP FUNCTION IF EXISTS get_nearby_listings(DOUBLE PRECISION, DOUBLE PRECISION, INTEGER, TEXT);
+
 CREATE OR REPLACE FUNCTION get_nearby_listings(
   lat           DOUBLE PRECISION,
   lng           DOUBLE PRECISION,
