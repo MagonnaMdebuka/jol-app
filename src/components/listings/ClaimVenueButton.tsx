@@ -69,15 +69,30 @@ const ClaimVenueButton: React.FC<IClaimVenueButtonProps> = ({ venueId, venueName
     return null;
   }
 
+  // Logged-in owners see the prominent button; everyone else sees a subtle text link
+  const isLoggedInOwner = authUser && isOwner;
+
   return (
     <>
-      <button
-        onClick={handleClaimClick}
-        className="flex items-center gap-2 px-4 py-2.5 bg-nz-accent/10 hover:bg-nz-accent/20 border border-nz-accent/30 rounded-xl text-nz-accent-text text-sm font-medium transition-all duration-200 active:scale-[0.98]"
-      >
-        <Building2 size={16} />
-        <span>Claim this venue</span>
-      </button>
+      {isLoggedInOwner ? (
+        <button
+          onClick={handleClaimClick}
+          className="flex items-center gap-2 px-4 py-2.5 bg-nz-accent/10 hover:bg-nz-accent/20 border border-nz-accent/30 rounded-xl text-nz-accent-text text-sm font-medium transition-all duration-200 active:scale-[0.98]"
+        >
+          <Building2 size={16} />
+          <span>Claim this venue</span>
+        </button>
+      ) : (
+        <p className="text-center text-nz-muted text-xs">
+          Own this place?{' '}
+          <button
+            onClick={handleClaimClick}
+            className="text-nz-accent-text hover:underline font-medium"
+          >
+            Claim it →
+          </button>
+        </p>
+      )}
 
       <Modal open={showModal} onClose={() => setShowModal(false)}>
         <div className="flex flex-col gap-5 p-6">
