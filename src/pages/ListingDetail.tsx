@@ -8,6 +8,7 @@ import Badge from '../components/ui/Badge';
 import Spinner from '../components/ui/Spinner';
 import Button from '../components/ui/Button';
 import ReportButton from '../components/listings/ReportButton';
+import ClaimVenueButton from '../components/listings/ClaimVenueButton';
 import { useSaved } from '../contexts/SavedContext';
 import { useInterested } from '../contexts/InterestedContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -391,6 +392,12 @@ const ListingDetail: React.FC = () => {
             tickets — just find the spot.
           </p>
         </div>
+
+        {/* Claim venue CTA for unclaimed venues */}
+        <ClaimVenueButton
+          venueId={listing.venue_id}
+          venueName={listing.venue_name ?? listing.title}
+        />
 
         <ReportButton listingId={listing.id} />
       </div>

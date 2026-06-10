@@ -85,14 +85,36 @@ Status markers: `[x]` done · `[-]` in progress · `[ ]` not started
 
 ## Up Next
 
-### Payments — PayFast
+### API & Data Strategy
 
-- [ ] Supabase Edge Function — server-side PayFast request signing
-- [ ] Ticket purchase flow — select ticket type (general / VIP / ladies / gents)
-- [ ] QR code generation on purchase
-- [ ] Orders + tickets table integration (tables already scaffolded)
-- [ ] Webhook handler — confirm payment, activate ticket
-- [ ] My tickets page for users
+- [x] Foursquare Places API integration — fetch venue data during owner setup
+- [x] Foursquare service (`src/services/places.service.ts`) with search + details
+- [x] Place types (`src/types/place.types.ts`) for API response typing
+- [ ] Cache Foursquare response in Supabase (name, address, photos, rating)
+- [ ] Fallback to Google Places if Foursquare returns no results
+- [ ] Remove API dependency for explorer-side — serve only from DB cache
+
+### Database — PostGIS Migration
+
+- [x] Enable PostGIS extension in Supabase (`supabase/migrations/004_postgis.sql`)
+- [x] Add `geog` geography(Point, 4326) column to venues and listings
+- [x] Trigger to auto-sync geog from JSONB location
+- [x] Update `get_nearby_listings` RPC to use `ST_DWithin` with spatial index
+- [ ] Update service layer to handle PostGIS point format (optional — JSONB preserved)
+
+### Cold Start — Data Seeding
+
+- [x] Overpass API seeding script (`scripts/seed-osm.ts`) — bulk import Gauteng venues
+- [x] Migration for OSM columns (`supabase/migrations/003_osm_columns.sql`)
+- [x] Deterministic fallback images (`src/constants/fallbackImages.ts` + `src/utils/fallbackImage.ts`)
+- [x] "Claim Your Venue" CTA on unclaimed listings (`ClaimVenueButton.tsx`)
+- [x] Claim flow — owner links existing listing to their account
+- [ ] Admin seed script — manually curate top 15-20 weekend events
+
+### UGC Photos (Future)
+
+- [ ] Explorer photo uploads to venues (authenticated only)
+- [ ] Photo moderation queue for owners/admins
 
 ### Owner Analytics
 
@@ -108,10 +130,15 @@ Status markers: `[x]` done · `[-]` in progress · `[ ]` not started
 
 ### Discovery improvements
 
-- [ ] "Near me" sort toggle on Feed and Map
-- [ ] Listing share button — native share sheet / copy link
-- [ ] Event RSVP — interested count (no payment, just a tap)
+- [x] "Near me" sort toggle on Feed and Map
+- [x] Listing share button — native share sheet / copy link
+- [x] Event RSVP — interested count (no payment, just a tap)
+- [x] Basic PWA — installability, offline caching (no push notifications yet)
 - [ ] Push notifications — new event near user (PWA)
+
+### DevOps
+
+- [ ] CI/CD pipeline — GitHub Actions for lint, build, deploy
 
 ### Content & Growth
 
@@ -135,12 +162,28 @@ Status markers: `[x]` done · `[-]` in progress · `[ ]` not started
 
 ---
 
+## Future / Paused
+
+### Payments — PayFast (paused until discovery validated)
+
+- [ ] Supabase Edge Function — server-side PayFast request signing
+- [ ] Ticket purchase flow — select ticket type (general / VIP / ladies / gents)
+- [ ] QR code generation on purchase
+- [ ] Orders + tickets table integration (tables already scaffolded)
+- [ ] Webhook handler — confirm payment, activate ticket
+- [ ] My tickets page for users
+- [ ] QR scanner in owner dashboard for door validation
+
+---
+
 ## Session Log
 
-| Date       | Work                                                                    |
-| ---------- | ----------------------------------------------------------------------- |
-| 2026-06-01 | Overpass caching — 24hr localStorage cache, server fallback, 2km radius |
-| 2026-06-01 | Added ListingPreviewModal — owners can preview before publishing        |
-| 2026-06-01 | Updated tracker — marked 4 known issues as fixed                        |
-| 2026-05-28 | OSM dual-layer search, mock data removal, GPS race condition fix        |
-| Earlier    | Owner-side overhaul, auth, DB schema, map, feed, search base            |
+| Date       | Work                                                                                            |
+| ---------- | ----------------------------------------------------------------------------------------------- |
+| 2026-06-10 | Foursquare API integration, PostGIS migration, OSM seeding script, fallback images, Claim Venue |
+| 2026-06-08 | Discovery improvements — sort toggle, native share, RSVP, basic PWA                             |
+| 2026-06-01 | Overpass caching — 24hr localStorage cache, server fallback, 2km radius                         |
+| 2026-06-01 | Added ListingPreviewModal — owners can preview before publishing                                |
+| 2026-06-01 | Updated tracker — marked 4 known issues as fixed                                                |
+| 2026-05-28 | OSM dual-layer search, mock data removal, GPS race condition fix                                |
+| Earlier    | Owner-side overhaul, auth, DB schema, map, feed, search base                                    |

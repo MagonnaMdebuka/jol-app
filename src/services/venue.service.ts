@@ -52,3 +52,79 @@ export const updateVenue = async (
   const { error } = await supabase.from('venues').update(payload).eq('id', id);
   return { error: error?.message ?? null };
 };
+
+/**
+ * Get a venue by ID
+ */
+export const getVenueById = async (id: string): Promise<IVenue | null> => {
+  if (!isSupabaseEnabled() || !supabase) {
+    return MOCK_VENUES.find((v) => v.id === id) ?? null;
+  }
+  const { data, error } = await supabase.from('venues').select('*').eq('id', id).single();
+  if (error) {
+    console.error('getVenueById error:', error.message);
+    return null;
+  }
+  return data as IVenue;
+};
+
+/**
+ * Check if a venue is claimable (unclaimed and has osm_id)
+ */
+export const isVenueClaimable = async (venueId: string): Promise<boolean> => {
+  if (!isSupabaseEnabled() || !supabase) return false;
+  const { data } = await supabase
+    .from('venues')
+    .select('is_claimed, osm_id')
+    .eq('id', venueId)
+    .single();
+  return data?.osm_id !== null && data?.is_claimed === false;
+};
+
+/**
+ * Claim an unclaimed venue for an owner
+ */
+export const claimVenue = async (
+  venueId: string,
+  ownerId: string,
+): Promise<{ success: boolean; error: string | null }> => {
+  if (!isSupabaseEnabled() || !supabase) {
+    return { success: true, error: null };
+  }
+
+  // First verify the venue is claimable
+  const { data: venue, error: fetchError } = await supabase
+    .from('venues')
+    .select('is_claimed, osm_id, owner_id')
+    .eq('id', venueId)
+    .single();
+
+  if (fetchError || !venue) {
+    return { success: false, error: 'Venue not found' };
+  }
+
+  if (venue.is_claimed) {
+    return { success: false, error: 'This venue has already been claimed' };
+  }
+
+  if (!venue.osm_id) {
+    return { success: false, error: 'This venue is not claimable' };
+  }
+
+  // Claim the venue
+  const { error: updateError } = await supabase
+    .from('venues')
+    .update({
+      is_claimed: true,
+      claimed_by: ownerId,
+      claimed_at: new Date().toISOString(),
+      owner_id: ownerId,
+    })
+    .eq('id', venueId);
+
+  if (updateError) {
+    return { success: false, error: updateError.message };
+  }
+
+  return { success: true, error: null };
+};
