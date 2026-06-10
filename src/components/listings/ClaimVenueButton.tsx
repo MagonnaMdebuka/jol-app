@@ -79,7 +79,7 @@ const ClaimVenueButton: React.FC<IClaimVenueButtonProps> = ({ venueId, venueName
         <span>Claim this venue</span>
       </button>
 
-      <Modal isOpen={showModal} onClose={() => setShowModal(false)}>
+      <Modal open={showModal} onClose={() => setShowModal(false)}>
         <div className="flex flex-col gap-5 p-6">
           <div className="flex items-center justify-center w-14 h-14 bg-nz-accent/10 rounded-2xl mx-auto">
             <Building2 className="text-nz-accent" size={28} />

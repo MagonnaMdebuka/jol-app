@@ -37,8 +37,8 @@ const AMENITY_TO_VENUE_TYPE: Record<string, string> = {
   fast_food: 'Other',
 };
 
-// Placeholder owner ID for seeded venues (create this user in Supabase)
-const JOL_ADMIN_ID = '00000000-0000-0000-0000-000000000000';
+// Seeded venues have no owner until claimed
+const JOL_ADMIN_ID = null;
 
 // Delay between Overpass requests (ms)
 const REQUEST_DELAY = 1500;
@@ -62,7 +62,7 @@ interface IOsmResponse {
 
 interface IVenueInsert {
   osm_id: string;
-  owner_id: string;
+  owner_id: string | null;
   name: string;
   type: string;
   address: string;
@@ -95,26 +95,31 @@ const buildAddress = (tags: Record<string, string>): string => {
 // ============================================================
 
 const buildOverpassQuery = (amenity: string): string => {
-  return `
-    [out:json][timeout:60];
-    node["amenity"="${amenity}"]["name"](${GAUTENG_BBOX});
-    out body 500;
-  `.trim();
+  // Overpass QL format: (south,west,north,east)
+  return `[out:json][timeout:60];
+node["amenity"="${amenity}"]["name"](${GAUTENG_BBOX});
+out body;`;
 };
 
 const fetchAmenities = async (amenity: string): Promise<IOsmNode[]> => {
   const query = buildOverpassQuery(amenity);
 
   console.log(`Fetching ${amenity} venues from Overpass...`);
+  console.log(`  Query: ${query.replace(/\n/g, ' ')}`);
 
   const response = await fetch(OVERPASS_URL, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'User-Agent': 'JolApp/1.0 (nightlife discovery app)',
+    },
     body: `data=${encodeURIComponent(query)}`,
   });
 
   if (!response.ok) {
+    const errorText = await response.text().catch(() => 'No error body');
     console.error(`Overpass error for ${amenity}: ${response.status}`);
+    console.error(`  Response: ${errorText.slice(0, 200)}`);
     return [];
   }
 
