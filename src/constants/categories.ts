@@ -1,12 +1,36 @@
 export const EVENT_TAGS = [
-  'Amapiano', 'House', 'Afrobeats', 'Hip Hop', 'RnB', 'Jazz',
-  'Live Music', 'DJ Night', 'Comedy', 'Dance', 'Pop', 'Rock',
-  'Open Mic', 'Art Show', 'Fashion', 'Sports',
+  'Amapiano',
+  'House',
+  'Afrobeats',
+  'Hip Hop',
+  'RnB',
+  'Jazz',
+  'Live Music',
+  'DJ Night',
+  'Comedy',
+  'Dance',
+  'Pop',
+  'Rock',
+  'Open Mic',
+  'Art Show',
+  'Fashion',
+  'Sports',
 ] as const;
 
 export const CUISINE_TYPES = [
-  'South African', 'Braai / Steakhouse', 'Peri-Peri / Chicken', 'Burgers', 'Pizza',
-  'Sushi', 'Chinese', 'Indian', 'Ethiopian', 'Vegan', 'Seafood', 'Food Market', 'Other',
+  'South African',
+  'Braai / Steakhouse',
+  'Peri-Peri / Chicken',
+  'Burgers',
+  'Pizza',
+  'Sushi',
+  'Chinese',
+  'Indian',
+  'Ethiopian',
+  'Vegan',
+  'Seafood',
+  'Food Market',
+  'Other',
 ] as const;
 
 export const VENUE_TYPES = [
@@ -58,4 +82,21 @@ export const NEIGHBOURHOODS: string[] = [
   'Melville',
   'Dunkeld',
   'Maboneng',
+];
+
+export interface INeighbourhoodArea {
+  name: string;
+  lat: number;
+  lng: number;
+  radiusMetres: number;
+}
+
+export const NEIGHBOURHOOD_AREAS: INeighbourhoodArea[] = [
+  { name: 'Sandton', lat: -26.1076, lng: 28.0567, radiusMetres: 6000 },
+  { name: 'Rosebank', lat: -26.1467, lng: 28.0419, radiusMetres: 4500 },
+  { name: 'Braamfontein', lat: -26.1929, lng: 28.0365, radiusMetres: 4500 },
+  { name: 'Soweto', lat: -26.2485, lng: 27.854, radiusMetres: 8000 },
+  { name: 'Melville', lat: -26.1752, lng: 28.0092, radiusMetres: 4000 },
+  { name: 'Dunkeld', lat: -26.1296, lng: 28.0344, radiusMetres: 3500 },
+  { name: 'Maboneng', lat: -26.2044, lng: 28.0594, radiusMetres: 3500 },
 ];

@@ -76,6 +76,7 @@ const OVERPASS_SERVERS = [
 
 const EVENT_KEYWORDS = [
   'amapiano',
+  'piano',
   'dj',
   'party',
   'event',
@@ -91,6 +92,24 @@ const EVENT_KEYWORDS = [
   'deep house',
 ];
 
+const QUERY_INTENTS: Record<string, string[]> = {
+  amapiano: ['nightclub', 'bar', 'pub', 'lounge'],
+  piano: ['nightclub', 'bar', 'pub', 'lounge'],
+  dj: ['nightclub', 'bar', 'pub', 'lounge'],
+  party: ['nightclub', 'bar', 'pub', 'lounge'],
+  club: ['nightclub', 'bar', 'pub', 'lounge'],
+  'date night': ['restaurant', 'cafe', 'bar', 'lounge'],
+  date: ['restaurant', 'cafe', 'bar', 'lounge'],
+  romantic: ['restaurant', 'cafe', 'bar', 'lounge'],
+  dinner: ['restaurant', 'cafe', 'bar'],
+  rooftop: ['bar', 'restaurant', 'lounge'],
+  sundowner: ['bar', 'restaurant', 'lounge'],
+  food: ['restaurant', 'cafe', 'fast_food', 'food_court', 'bistro'],
+  braai: ['restaurant', 'bar', 'pub'],
+  chill: ['restaurant', 'cafe', 'bar', 'lounge'],
+  jazz: ['nightclub', 'bar', 'pub', 'lounge', 'theatre'],
+};
+
 const AMENITY_LABELS: Record<string, string> = {
   restaurant: 'Restaurant',
   cafe: 'Café',
@@ -99,9 +118,18 @@ const AMENITY_LABELS: Record<string, string> = {
   food_court: 'Food court',
   pub: 'Pub',
   bistro: 'Bistro',
+  nightclub: 'Nightclub',
+  lounge: 'Lounge',
+  theatre: 'Theatre',
+  cinema: 'Cinema',
+  hotel: 'Hotel',
+  attraction: 'Attraction',
+  marketplace: 'Market',
+  biergarten: 'Beer garden',
+  casino: 'Casino',
 };
 
-const FOOD_TYPES = new Set([
+const DISCOVERY_TYPES = new Set([
   'restaurant',
   'cafe',
   'bar',
@@ -109,12 +137,25 @@ const FOOD_TYPES = new Set([
   'food_court',
   'pub',
   'bistro',
+  'nightclub',
+  'lounge',
+  'theatre',
+  'cinema',
+  'hotel',
+  'attraction',
+  'marketplace',
+  'biergarten',
+  'casino',
 ]);
 
-const AMENITY_PATTERN = 'restaurant|cafe|bar|fast_food|food_court|pub|bistro';
+const AMENITY_PATTERN =
+  'restaurant|cafe|bar|fast_food|food_court|pub|bistro|nightclub|theatre|cinema|biergarten|casino|marketplace';
+const TOURISM_PATTERN = 'hotel|attraction';
+const LEISURE_PATTERN = 'adult_gaming_centre';
+const NAME_PATTERN =
+  'club|lounge|bar|grill|restaurant|cafe|coffee|kitchen|rooftop|pub|tavern|shisanyama|braai|jazz|casino';
 
-// Search radius in metres (reduced from 3000 for faster queries)
-const SEARCH_RADIUS_M = 2000;
+const AREA_SEARCH_RADIUS_M = 6000;
 
 // ─────────────────────────────────────────────────────────────
 // Helpers
@@ -122,6 +163,12 @@ const SEARCH_RADIUS_M = 2000;
 
 export const isEventQuery = (query: string): boolean =>
   EVENT_KEYWORDS.some((kw) => query.toLowerCase().includes(kw));
+
+export const getSearchIntentTypes = (query: string): string[] | null => {
+  const q = query.toLowerCase();
+  const match = Object.entries(QUERY_INTENTS).find(([keyword]) => q.includes(keyword));
+  return match?.[1] ?? null;
+};
 
 export const formatOsmCategory = (amenity: string, cuisine: string | null): string => {
   const base = AMENITY_LABELS[amenity] ?? amenity;
@@ -138,6 +185,31 @@ const haversine = (lat1: number, lng1: number, lat2: number, lng2: number): numb
     Math.sin(dLat / 2) ** 2 +
     Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+};
+
+const inferCategoryFromName = (name: string): string | null => {
+  const n = name.toLowerCase();
+  if (n.includes('club')) return 'nightclub';
+  if (n.includes('lounge') || n.includes('rooftop')) return 'lounge';
+  if (n.includes('bar')) return 'bar';
+  if (n.includes('pub')) return 'pub';
+  if (n.includes('grill') || n.includes('kitchen') || n.includes('restaurant')) {
+    return 'restaurant';
+  }
+  if (n.includes('cafe') || n.includes('coffee')) return 'cafe';
+  if (n.includes('casino')) return 'casino';
+  return null;
+};
+
+const getElementCategory = (tags: Record<string, string>): string | null => {
+  const category =
+    tags.amenity ??
+    tags.tourism ??
+    (tags.leisure === 'adult_gaming_centre' ? 'casino' : tags.leisure) ??
+    null;
+  if (category && DISCOVERY_TYPES.has(category)) return category;
+  if (tags.name) return inferCategoryFromName(tags.name);
+  return null;
 };
 
 /** Geocode a location name. Returns null if it resolves to a food venue (not an area). */
@@ -161,6 +233,7 @@ const parseOverpassElements = (
   refLat: number,
   refLng: number,
   hasLoc: boolean,
+  intentTypes: string[] | null = null,
 ): IOsmPlace[] => {
   const places: IOsmPlace[] = [];
   for (const el of elements ?? []) {
@@ -168,7 +241,9 @@ const parseOverpassElements = (
     const pLon: number | undefined = el.type === 'way' ? el.center?.lon : el.lon;
     if (!pLat || !pLon) continue;
     const t = el.tags ?? {};
-    if (!t.name || !FOOD_TYPES.has(t.amenity)) continue;
+    const category = getElementCategory(t);
+    if (!t.name || !category) continue;
+    if (intentTypes && !intentTypes.includes(category)) continue;
     const suburb: string | null = t['addr:suburb'] ?? t.suburb ?? null;
     const address =
       [t['addr:housenumber'], t['addr:street'], suburb].filter(Boolean).join(' ') ||
@@ -179,7 +254,7 @@ const parseOverpassElements = (
       name: t.name as string,
       address,
       suburb,
-      amenity: t.amenity as string,
+      amenity: category,
       cuisine: t.cuisine ?? null,
       lat: pLat,
       lng: pLon,
@@ -220,8 +295,10 @@ export const overpassAreaSearch = async (
   refLng: number,
   hasLoc: boolean,
   limit: number = 20,
+  intentTypes: string[] | null = null,
+  radiusMetres: number = AREA_SEARCH_RADIUS_M,
 ): Promise<IOsmPlace[]> => {
-  const cacheKey = getCacheKey(centerLat, centerLng);
+  const cacheKey = `${getCacheKey(centerLat, centerLng)}-${radiusMetres}`;
   const cached = getCache(cacheKey);
 
   // If we have cached data, use it
@@ -234,14 +311,26 @@ export const overpassAreaSearch = async (
 
     // If cache is stale but not expired, refresh in background
     if (isCacheStale(cached)) {
-      refreshCacheInBackground(centerLat, centerLng, limit, cacheKey);
+      refreshCacheInBackground(centerLat, centerLng, limit, cacheKey, radiusMetres);
     }
 
-    return recalculated.slice(0, limit);
+    return recalculated
+      .filter((p) => !intentTypes || intentTypes.includes(p.amenity))
+      .slice(0, limit);
   }
 
   // No cache — fetch fresh data
-  return fetchAndCacheOverpass(centerLat, centerLng, refLat, refLng, hasLoc, limit, cacheKey);
+  return fetchAndCacheOverpass(
+    centerLat,
+    centerLng,
+    refLat,
+    refLng,
+    hasLoc,
+    limit,
+    cacheKey,
+    intentTypes,
+    radiusMetres,
+  );
 };
 
 const fetchAndCacheOverpass = async (
@@ -252,17 +341,19 @@ const fetchAndCacheOverpass = async (
   hasLoc: boolean,
   limit: number,
   cacheKey: string,
+  intentTypes: string[] | null,
+  radiusMetres: number,
 ): Promise<IOsmPlace[]> => {
   // Request more than needed to have buffer for cache
   const fetchLimit = Math.max(limit, 50);
-  const oq = `[out:json][timeout:10];(node["amenity"~"${AMENITY_PATTERN}"](around:${SEARCH_RADIUS_M},${centerLat},${centerLng});way["amenity"~"${AMENITY_PATTERN}"](around:${SEARCH_RADIUS_M},${centerLat},${centerLng}););out center ${fetchLimit};`;
+  const oq = `[out:json][timeout:10];(node["amenity"~"${AMENITY_PATTERN}"](around:${radiusMetres},${centerLat},${centerLng});way["amenity"~"${AMENITY_PATTERN}"](around:${radiusMetres},${centerLat},${centerLng});node["tourism"~"${TOURISM_PATTERN}"](around:${radiusMetres},${centerLat},${centerLng});way["tourism"~"${TOURISM_PATTERN}"](around:${radiusMetres},${centerLat},${centerLng});node["leisure"~"${LEISURE_PATTERN}"](around:${radiusMetres},${centerLat},${centerLng});way["leisure"~"${LEISURE_PATTERN}"](around:${radiusMetres},${centerLat},${centerLng});node["name"~"${NAME_PATTERN}",i](around:${radiusMetres},${centerLat},${centerLng});way["name"~"${NAME_PATTERN}",i](around:${radiusMetres},${centerLat},${centerLng}););out center ${fetchLimit};`;
 
   const res = await fetchOverpassWithFallback(oq);
   if (!res) return [];
 
   try {
     const d = await res.json();
-    const places = parseOverpassElements(d.elements, refLat, refLng, hasLoc);
+    const places = parseOverpassElements(d.elements, refLat, refLng, hasLoc, intentTypes);
 
     // Cache the full result set (without distance, we recalculate on read)
     const toCache = places.map((p) => ({ ...p, distance_metres: null }));
@@ -279,10 +370,11 @@ const refreshCacheInBackground = (
   centerLng: number,
   limit: number,
   cacheKey: string,
+  radiusMetres: number,
 ): void => {
   // Fire and forget — don't await
   const fetchLimit = Math.max(limit, 50);
-  const oq = `[out:json][timeout:10];(node["amenity"~"${AMENITY_PATTERN}"](around:${SEARCH_RADIUS_M},${centerLat},${centerLng});way["amenity"~"${AMENITY_PATTERN}"](around:${SEARCH_RADIUS_M},${centerLat},${centerLng}););out center ${fetchLimit};`;
+  const oq = `[out:json][timeout:10];(node["amenity"~"${AMENITY_PATTERN}"](around:${radiusMetres},${centerLat},${centerLng});way["amenity"~"${AMENITY_PATTERN}"](around:${radiusMetres},${centerLat},${centerLng});node["tourism"~"${TOURISM_PATTERN}"](around:${radiusMetres},${centerLat},${centerLng});way["tourism"~"${TOURISM_PATTERN}"](around:${radiusMetres},${centerLat},${centerLng});node["leisure"~"${LEISURE_PATTERN}"](around:${radiusMetres},${centerLat},${centerLng});way["leisure"~"${LEISURE_PATTERN}"](around:${radiusMetres},${centerLat},${centerLng});node["name"~"${NAME_PATTERN}",i](around:${radiusMetres},${centerLat},${centerLng});way["name"~"${NAME_PATTERN}",i](around:${radiusMetres},${centerLat},${centerLng}););out center ${fetchLimit};`;
 
   fetchOverpassWithFallback(oq)
     .then(async (res) => {
@@ -306,11 +398,25 @@ export const searchOsmPlaces = async (
   userLat: number | null,
   userLng: number | null,
 ): Promise<IOsmPlace[]> => {
-  if (isEventQuery(query)) return [];
-
   const lat = userLat ?? GAUTENG_CENTER.lat;
   const lng = userLng ?? GAUTENG_CENTER.lng;
   const hasLocation = userLat !== null && userLng !== null;
+  const intentTypes = getSearchIntentTypes(query);
+
+  if (intentTypes) {
+    const intentResults = await overpassAreaSearch(
+      lat,
+      lng,
+      lat,
+      lng,
+      hasLocation,
+      20,
+      intentTypes,
+      AREA_SEARCH_RADIUS_M,
+    );
+    return intentResults.sort((a, b) => (a.distance_metres ?? 0) - (b.distance_metres ?? 0));
+  }
+
   const d = hasLocation ? 0.045 : 0.135;
   const viewbox = `${lng - d},${lat + d},${lng + d},${lat - d}`;
 
@@ -338,32 +444,32 @@ export const searchOsmPlaces = async (
     console.warn('[OSM] Nominatim failed', e);
   }
 
-  const places: IOsmPlace[] = results
-    .filter((r) => r.class === 'amenity' && FOOD_TYPES.has(r.type))
-    .flatMap((r): IOsmPlace[] => {
-      const pLat = parseFloat(r.lat);
-      const pLon = parseFloat(r.lon);
-      if (isNaN(pLat) || isNaN(pLon)) return [];
-      const addr = r.address ?? {};
-      const name: string = addr.amenity ?? r.display_name.split(',')[0].trim();
-      const suburb: string | null = addr.suburb ?? addr.neighbourhood ?? null;
-      const address =
-        [addr.house_number, addr.road, suburb].filter(Boolean).join(' ') || 'Address unavailable';
-      return [
-        {
-          osm_id: parseInt(r.osm_id, 10),
-          osm_type: r.osm_type === 'way' ? 'way' : 'node',
-          name,
-          address,
-          suburb,
-          amenity: r.type,
-          cuisine: r.extratags?.cuisine ?? null,
-          lat: pLat,
-          lng: pLon,
-          distance_metres: hasLocation ? haversine(lat, lng, pLat, pLon) : null,
-        },
-      ];
-    });
+  const places: IOsmPlace[] = results.flatMap((r): IOsmPlace[] => {
+    const pLat = parseFloat(r.lat);
+    const pLon = parseFloat(r.lon);
+    if (isNaN(pLat) || isNaN(pLon)) return [];
+    const addr = r.address ?? {};
+    const name: string = addr.amenity ?? r.display_name.split(',')[0].trim();
+    const category = DISCOVERY_TYPES.has(r.type) ? r.type : inferCategoryFromName(name);
+    if (!category) return [];
+    const suburb: string | null = addr.suburb ?? addr.neighbourhood ?? null;
+    const address =
+      [addr.house_number, addr.road, suburb].filter(Boolean).join(' ') || 'Address unavailable';
+    return [
+      {
+        osm_id: parseInt(r.osm_id, 10),
+        osm_type: r.osm_type === 'way' ? 'way' : 'node',
+        name,
+        address,
+        suburb,
+        amenity: category,
+        cuisine: r.extratags?.cuisine ?? null,
+        lat: pLat,
+        lng: pLon,
+        distance_metres: hasLocation ? haversine(lat, lng, pLat, pLon) : null,
+      },
+    ];
+  });
 
   if (places.length > 0)
     return places.sort((a, b) => (a.distance_metres ?? 0) - (b.distance_metres ?? 0));

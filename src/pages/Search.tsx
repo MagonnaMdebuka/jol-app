@@ -1,16 +1,15 @@
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
-import { Search as SearchIcon, X, MapPin, ExternalLink } from 'lucide-react';
+import { Search as SearchIcon, X } from 'lucide-react';
 import { useListings } from '../contexts/ListingsContext';
-import { NEIGHBOURHOODS } from '../constants/categories';
+import { NEIGHBOURHOODS, NEIGHBOURHOOD_AREAS } from '../constants/categories';
 import { RowCard } from '../components/listings/ListingCard';
 import Chip from '../components/ui/Chip';
 import BottomSheet from '../components/ui/BottomSheet';
-import Badge from '../components/ui/Badge';
 import OsmCard from '../components/search/OsmCard';
+import SelectedPlaceSheet from '../components/search/SelectedPlaceSheet';
 import {
   searchOsmPlaces,
-  isEventQuery,
-  formatOsmCategory,
+  getSearchIntentTypes,
   geocodePlace,
   overpassAreaSearch,
 } from '../services/osm.service';
@@ -41,14 +40,19 @@ const MonoLabel: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   </p>
 );
 
-const fmtDistance = (m: number): string =>
-  m < 1000 ? `${Math.round(m)}m` : `${(m / 1000).toFixed(1)} km`;
+const normalize = (value: string): string => value.trim().toLowerCase();
 
-const buildRegisterUrl = (place: IOsmPlace): string => {
-  const params = new URLSearchParams({ name: place.name, address: place.address });
-  return `/owner/register?${params.toString()}`;
+const haversine = (lat1: number, lng1: number, lat2: number, lng2: number): number => {
+  const R = 6371000;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLng = ((lng2 - lng1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 };
 
+/*
 const OsmPlaceDetail: React.FC<{ place: IOsmPlace }> = ({ place }) => (
   <div className="pt-2">
     <div className="flex items-start gap-3 mb-4">
@@ -111,6 +115,7 @@ const OsmPlaceDetail: React.FC<{ place: IOsmPlace }> = ({ place }) => (
   </div>
 );
 
+*/
 const OsmLoadingState: React.FC = () => (
   <div className="flex items-center gap-2 py-4 text-nz-muted">
     <div className="w-3 h-3 rounded-full border-2 border-nz-muted/30 border-t-nz-muted animate-spin" />
@@ -137,6 +142,7 @@ const Search: React.FC = () => {
   const [loadMoreLoading, setLoadMoreLoading] = useState(false);
   const [selectedOsmPlace, setSelectedOsmPlace] = useState<IOsmPlace | null>(null);
   const [areaCoords, setAreaCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [areaRadius, setAreaRadius] = useState(6000);
   const [currentLimit, setCurrentLimit] = useState(INITIAL_LIMIT);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const locationRef = useRef<{ lat: number | null; lng: number | null }>({
@@ -149,9 +155,16 @@ const Search: React.FC = () => {
     locationRef.current = { lat: userLat, lng: userLng };
   }, [userLat, userLng]);
 
+  const knownArea = useMemo(() => {
+    const q = normalize(query);
+    if (!q) return null;
+    return NEIGHBOURHOOD_AREAS.find((area) => normalize(area.name) === q) ?? null;
+  }, [query]);
+
   const handleClear = useCallback(() => {
     setQuery('');
     setAreaCoords(null);
+    setAreaRadius(6000);
     setCurrentLimit(INITIAL_LIMIT);
   }, []);
   const handleTagPress = useCallback((tag: string) => setQuery(tag), []);
@@ -159,31 +172,78 @@ const Search: React.FC = () => {
   const jolResults = useMemo(() => {
     if (!query.trim()) return [];
     const q = query.toLowerCase();
+    const intentTypes = getSearchIntentTypes(query);
+
+    if (knownArea) {
+      return listings
+        .map((l) => ({
+          listing: l,
+          distance: haversine(knownArea.lat, knownArea.lng, l.location.lat, l.location.lng),
+        }))
+        .filter(({ distance }) => distance <= knownArea.radiusMetres)
+        .sort((a, b) => a.distance - b.distance)
+        .map(({ listing }) => listing);
+    }
+
     return listings.filter(
       (l) =>
         l.title.toLowerCase().includes(q) ||
         l.venue_name?.toLowerCase().includes(q) ||
         l.address.toLowerCase().includes(q) ||
+        l.description?.toLowerCase().includes(q) ||
+        l.cuisine_type?.toLowerCase().includes(q) ||
+        l.entry_fee?.toLowerCase().includes(q) ||
+        l.when_chip?.toLowerCase().includes(q) ||
+        l.type.toLowerCase().includes(q) ||
         l.tags?.some((t) => t.toLowerCase().includes(q)) ||
-        l.vibe?.some((v) => v.toLowerCase().includes(q)),
+        l.vibe?.some((v) => v.toLowerCase().includes(q)) ||
+        (intentTypes?.includes('nightclub') && l.type === 'event') ||
+        (intentTypes?.includes('restaurant') && l.type === 'food'),
     );
-  }, [listings, query]);
+  }, [knownArea, listings, query]);
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    const skip = !query.trim() || isEventQuery(query);
+    const skip = !query.trim();
     debounceRef.current = setTimeout(
       () => {
         if (skip) {
           setOsmResults([]);
           setOsmLoading(false);
           setAreaCoords(null);
+          setAreaRadius(6000);
           setCurrentLimit(INITIAL_LIMIT);
         } else {
           setOsmLoading(true);
-          setAreaCoords(null);
+          setAreaCoords(knownArea ? { lat: knownArea.lat, lng: knownArea.lng } : null);
+          setAreaRadius(knownArea?.radiusMetres ?? 6000);
           setCurrentLimit(INITIAL_LIMIT);
           const { lat, lng } = locationRef.current;
+          const intentTypes = getSearchIntentTypes(query);
+
+          if (knownArea) {
+            const hasLoc = lat !== null && lng !== null;
+            const refLat = lat ?? knownArea.lat;
+            const refLng = lng ?? knownArea.lng;
+            overpassAreaSearch(
+              knownArea.lat,
+              knownArea.lng,
+              refLat,
+              refLng,
+              hasLoc,
+              INITIAL_LIMIT,
+              intentTypes,
+              knownArea.radiusMetres,
+            )
+              .then((places) =>
+                setOsmResults(
+                  places.sort((a, b) => (a.distance_metres ?? 0) - (b.distance_metres ?? 0)),
+                ),
+              )
+              .catch(() => setOsmResults([]))
+              .finally(() => setOsmLoading(false));
+            return;
+          }
 
           // First try normal search
           searchOsmPlaces(query, lat, lng)
@@ -206,6 +266,7 @@ const Search: React.FC = () => {
                   refLng,
                   hasLoc,
                   INITIAL_LIMIT,
+                  intentTypes,
                 );
                 setOsmResults(
                   areaPlaces.sort((a, b) => (a.distance_metres ?? 0) - (b.distance_metres ?? 0)),
@@ -223,7 +284,7 @@ const Search: React.FC = () => {
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [query]);
+  }, [knownArea, query]);
 
   const handleLoadMore = useCallback(async () => {
     if (!areaCoords || loadMoreLoading) return;
@@ -234,6 +295,7 @@ const Search: React.FC = () => {
     const hasLoc = lat !== null && lng !== null;
     const refLat = lat ?? areaCoords.lat;
     const refLng = lng ?? areaCoords.lng;
+    const intentTypes = getSearchIntentTypes(query);
 
     try {
       const places = await overpassAreaSearch(
@@ -243,13 +305,15 @@ const Search: React.FC = () => {
         refLng,
         hasLoc,
         newLimit,
+        intentTypes,
+        areaRadius,
       );
       setOsmResults(places.sort((a, b) => (a.distance_metres ?? 0) - (b.distance_metres ?? 0)));
       setCurrentLimit(newLimit);
     } finally {
       setLoadMoreLoading(false);
     }
-  }, [areaCoords, loadMoreLoading, currentLimit]);
+  }, [areaCoords, areaRadius, currentLimit, loadMoreLoading, query]);
 
   const canLoadMore = areaCoords !== null && osmResults.length >= currentLimit;
   const showResults = query.trim().length > 0;
@@ -335,36 +399,34 @@ const Search: React.FC = () => {
                 </section>
               )}
 
-              {!isEventQuery(query) && (
-                <section>
-                  {osmLoading ? (
-                    <OsmLoadingState />
-                  ) : osmResults.length > 0 ? (
-                    <>
-                      <MonoLabel>NEARBY PLACES — {osmResults.length} FROM OPENSTREETMAP</MonoLabel>
-                      <div className="flex flex-col gap-2.5">
-                        {osmResults.map((p) => (
-                          <OsmCard
-                            key={`${p.osm_type}-${p.osm_id}`}
-                            place={p}
-                            onClick={setSelectedOsmPlace}
-                          />
-                        ))}
-                      </div>
-                      {canLoadMore && (
-                        <button
-                          onClick={handleLoadMore}
-                          disabled={loadMoreLoading}
-                          className="w-full mt-4 py-3 border border-nz-border rounded-2xl text-sm text-nz-muted font-medium hover:text-nz-text hover:border-nz-muted/40 transition-all duration-200 disabled:opacity-50"
-                          type="button"
-                        >
-                          {loadMoreLoading ? 'Loading…' : 'Load more places'}
-                        </button>
-                      )}
-                    </>
-                  ) : null}
-                </section>
-              )}
+              <section>
+                {osmLoading ? (
+                  <OsmLoadingState />
+                ) : osmResults.length > 0 ? (
+                  <>
+                    <MonoLabel>NEARBY PLACES — {osmResults.length} FROM OPENSTREETMAP</MonoLabel>
+                    <div className="flex flex-col gap-2.5">
+                      {osmResults.map((p) => (
+                        <OsmCard
+                          key={`${p.osm_type}-${p.osm_id}`}
+                          place={p}
+                          onClick={setSelectedOsmPlace}
+                        />
+                      ))}
+                    </div>
+                    {canLoadMore && (
+                      <button
+                        onClick={handleLoadMore}
+                        disabled={loadMoreLoading}
+                        className="w-full mt-4 py-3 border border-nz-border rounded-2xl text-sm text-nz-muted font-medium hover:text-nz-text hover:border-nz-muted/40 transition-all duration-200 disabled:opacity-50"
+                        type="button"
+                      >
+                        {loadMoreLoading ? 'Loading…' : 'Load more places'}
+                      </button>
+                    )}
+                  </>
+                ) : null}
+              </section>
 
               {jolResults.length === 0 && osmResults.length === 0 && !osmLoading && (
                 <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
@@ -378,8 +440,12 @@ const Search: React.FC = () => {
         </div>
       </div>
 
-      <BottomSheet open={selectedOsmPlace !== null} onClose={() => setSelectedOsmPlace(null)}>
-        {selectedOsmPlace && <OsmPlaceDetail place={selectedOsmPlace} />}
+      <BottomSheet
+        open={selectedOsmPlace !== null}
+        onClose={() => setSelectedOsmPlace(null)}
+        defaultSnap="partial"
+      >
+        {selectedOsmPlace && <SelectedPlaceSheet place={selectedOsmPlace} listings={listings} />}
       </BottomSheet>
     </div>
   );
