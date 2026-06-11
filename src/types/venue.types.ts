@@ -25,4 +25,13 @@ export interface IVenue {
   is_claimed?: boolean;
   claimed_by?: string | null;
   claimed_at?: string | null;
+
+  // Cached place data from APIs
+  fsq_id?: string | null;
+  google_place_id?: string | null;
+  cached_photos?: string[];
+  cached_rating?: number | null;
+  cached_category?: string | null;
+  place_source?: 'foursquare' | 'google' | 'manual' | 'osm' | null;
+  cache_fetched_at?: string | null;
 }

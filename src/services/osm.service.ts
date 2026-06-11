@@ -393,6 +393,69 @@ const refreshCacheInBackground = (
 // Main Search Function
 // ─────────────────────────────────────────────────────────────
 
+/** Search Nominatim for a single query term */
+const nominatimSearch = async (
+  query: string,
+  viewbox: string,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+): Promise<any[]> => {
+  const params = new URLSearchParams({
+    q: query,
+    format: 'json',
+    countrycodes: 'za',
+    limit: '20',
+    addressdetails: '1',
+    extratags: '1',
+    viewbox,
+    bounded: '1',
+  });
+  try {
+    const res = await fetch(`https://nominatim.openstreetmap.org/search?${params}`, {
+      signal: AbortSignal.timeout(8000),
+    });
+    if (res.ok) return res.json();
+    console.warn(`[OSM] Nominatim ${res.status}`);
+  } catch (e) {
+    console.warn('[OSM] Nominatim failed', e);
+  }
+  return [];
+};
+
+/** Parse Nominatim results into IOsmPlace[] */
+const parseNominatimResults = (
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  results: any[],
+  refLat: number,
+  refLng: number,
+  hasLocation: boolean,
+): IOsmPlace[] =>
+  results.flatMap((r): IOsmPlace[] => {
+    const pLat = parseFloat(r.lat);
+    const pLon = parseFloat(r.lon);
+    if (isNaN(pLat) || isNaN(pLon)) return [];
+    const addr = r.address ?? {};
+    const name: string = addr.amenity ?? r.display_name.split(',')[0].trim();
+    const category = DISCOVERY_TYPES.has(r.type) ? r.type : inferCategoryFromName(name);
+    if (!category) return [];
+    const suburb: string | null = addr.suburb ?? addr.neighbourhood ?? null;
+    const address =
+      [addr.house_number, addr.road, suburb].filter(Boolean).join(' ') || 'Address unavailable';
+    return [
+      {
+        osm_id: parseInt(r.osm_id, 10),
+        osm_type: r.osm_type === 'way' ? 'way' : 'node',
+        name,
+        address,
+        suburb,
+        amenity: category,
+        cuisine: r.extratags?.cuisine ?? null,
+        lat: pLat,
+        lng: pLon,
+        distance_metres: hasLocation ? haversine(refLat, refLng, pLat, pLon) : null,
+      },
+    ];
+  });
+
 export const searchOsmPlaces = async (
   query: string,
   userLat: number | null,
@@ -421,60 +484,22 @@ export const searchOsmPlaces = async (
   const viewbox = `${lng - d},${lat + d},${lng + d},${lat - d}`;
 
   // Step 1 — Nominatim name search (finds "KFC", "Kuai" etc.)
-  const params = new URLSearchParams({
-    q: query,
-    format: 'json',
-    countrycodes: 'za',
-    limit: '20',
-    addressdetails: '1',
-    extratags: '1',
-    viewbox,
-    bounded: '1',
-  });
+  let results = await nominatimSearch(query, viewbox);
+  let places = parseNominatimResults(results, lat, lng, hasLocation);
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let results: any[] = [];
-  try {
-    const res = await fetch(`https://nominatim.openstreetmap.org/search?${params}`, {
-      signal: AbortSignal.timeout(8000),
-    });
-    if (res.ok) results = await res.json();
-    else console.warn(`[OSM] Nominatim ${res.status}`);
-  } catch (e) {
-    console.warn('[OSM] Nominatim failed', e);
+  // Step 2 — If no results, try searching the first word only (handles "Piatto Kyalami" → "Piatto")
+  if (places.length === 0) {
+    const words = query.trim().split(/\s+/);
+    if (words.length > 1) {
+      results = await nominatimSearch(words[0], viewbox);
+      places = parseNominatimResults(results, lat, lng, hasLocation);
+    }
   }
-
-  const places: IOsmPlace[] = results.flatMap((r): IOsmPlace[] => {
-    const pLat = parseFloat(r.lat);
-    const pLon = parseFloat(r.lon);
-    if (isNaN(pLat) || isNaN(pLon)) return [];
-    const addr = r.address ?? {};
-    const name: string = addr.amenity ?? r.display_name.split(',')[0].trim();
-    const category = DISCOVERY_TYPES.has(r.type) ? r.type : inferCategoryFromName(name);
-    if (!category) return [];
-    const suburb: string | null = addr.suburb ?? addr.neighbourhood ?? null;
-    const address =
-      [addr.house_number, addr.road, suburb].filter(Boolean).join(' ') || 'Address unavailable';
-    return [
-      {
-        osm_id: parseInt(r.osm_id, 10),
-        osm_type: r.osm_type === 'way' ? 'way' : 'node',
-        name,
-        address,
-        suburb,
-        amenity: category,
-        cuisine: r.extratags?.cuisine ?? null,
-        lat: pLat,
-        lng: pLon,
-        distance_metres: hasLocation ? haversine(lat, lng, pLat, pLon) : null,
-      },
-    ];
-  });
 
   if (places.length > 0)
     return places.sort((a, b) => (a.distance_metres ?? 0) - (b.distance_metres ?? 0));
 
-  // Step 2 — No food places by name. Try geocoding as a location ("Sandton", "Rosebank", etc.)
+  // Step 3 — No food places by name. Try geocoding as a location ("Sandton", "Rosebank", etc.)
   // then run an Overpass area search centred on those coordinates.
   const coord = await geocodePlace(query);
   if (!coord) return [];

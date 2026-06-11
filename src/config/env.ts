@@ -6,3 +6,10 @@ export const isSupabaseEnabled = (): boolean => !!(getSupabaseUrl() && getSupaba
 // Foursquare Places API
 export const getFoursquareApiKey = (): string => import.meta.env.VITE_FOURSQUARE_API_KEY ?? '';
 export const isFoursquareEnabled = (): boolean => !!getFoursquareApiKey();
+
+// Google Places API (fallback)
+export const getGooglePlacesApiKey = (): string => import.meta.env.VITE_GOOGLE_PLACES_API_KEY ?? '';
+export const isGooglePlacesEnabled = (): boolean => !!getGooglePlacesApiKey();
+
+// Any place search API available
+export const isPlaceSearchEnabled = (): boolean => isFoursquareEnabled() || isGooglePlacesEnabled();

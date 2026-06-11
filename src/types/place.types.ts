@@ -1,14 +1,19 @@
-// Foursquare Places API response types
+// Places API response types (unified across providers)
+
+export type PlaceSource = 'foursquare' | 'google' | 'manual' | 'osm';
 
 export interface IPlaceResult {
-  fsq_id: string;
+  fsq_id?: string;
+  google_place_id?: string;
   name: string;
   address: string;
   lat: number;
   lng: number;
   category: string;
   photo_url: string | null;
+  photos?: string[];
   rating: number | null;
+  source: PlaceSource;
 }
 
 // Foursquare API response structures
@@ -59,4 +64,31 @@ export interface IFoursquarePlace {
 
 export interface IFoursquareResponse {
   results: IFoursquarePlace[];
+}
+
+// Google Places API (New) response structures
+export interface IGooglePlacePhoto {
+  name: string;
+  widthPx: number;
+  heightPx: number;
+}
+
+export interface IGooglePlaceLocation {
+  latitude: number;
+  longitude: number;
+}
+
+export interface IGooglePlace {
+  id: string;
+  displayName: { text: string };
+  formattedAddress: string;
+  location: IGooglePlaceLocation;
+  primaryType?: string;
+  primaryTypeDisplayName?: { text: string };
+  photos?: IGooglePlacePhoto[];
+  rating?: number;
+}
+
+export interface IGooglePlacesResponse {
+  places: IGooglePlace[];
 }
