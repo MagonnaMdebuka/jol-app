@@ -204,7 +204,8 @@ const Search: React.FC = () => {
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    const skip = !query.trim();
+    const trimmed = query.trim();
+    const skip = !trimmed || trimmed.length < 3; // Require at least 3 characters
     debounceRef.current = setTimeout(
       () => {
         if (skip) {
@@ -279,7 +280,7 @@ const Search: React.FC = () => {
             .finally(() => setOsmLoading(false));
         }
       },
-      skip ? 0 : 400,
+      skip ? 0 : 800, // Longer debounce to respect Nominatim rate limits
     );
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -316,7 +317,7 @@ const Search: React.FC = () => {
   }, [areaCoords, areaRadius, currentLimit, loadMoreLoading, query]);
 
   const canLoadMore = areaCoords !== null && osmResults.length >= currentLimit;
-  const showResults = query.trim().length > 0;
+  const showResults = query.trim().length >= 3;
 
   return (
     <div className="h-full overflow-y-auto bg-nz-bg">
