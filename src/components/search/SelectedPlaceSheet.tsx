@@ -68,10 +68,19 @@ const SectionTitle: React.FC<{ children: React.ReactNode }> = ({ children }) => 
 
 const PlaceHero: React.FC<{ place: IOsmPlace }> = ({ place }) => {
   const category = formatOsmCategory(place.amenity, place.cuisine);
+  const hasPhoto = !!place.photo_url;
 
   return (
     <div className="relative -mx-5 -mt-1 h-[220px] overflow-hidden bg-nz-elevated sm:mx-0 sm:rounded-[24px]">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_10%,rgba(255,184,138,0.32),transparent_34%),linear-gradient(135deg,#2e2116_0%,#5a2d1d_46%,#17100b_100%)]" />
+      {hasPhoto ? (
+        <img
+          src={place.photo_url}
+          alt={place.name}
+          className="absolute inset-0 w-full h-full object-cover"
+        />
+      ) : (
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_10%,rgba(255,184,138,0.32),transparent_34%),linear-gradient(135deg,#2e2116_0%,#5a2d1d_46%,#17100b_100%)]" />
+      )}
       <div className="absolute inset-0 opacity-[0.16] bg-[linear-gradient(90deg,rgba(255,255,255,0.12)_1px,transparent_1px),linear-gradient(0deg,rgba(255,255,255,0.10)_1px,transparent_1px)] bg-[size:28px_28px]" />
       <div className="absolute inset-0 bg-gradient-to-t from-[#0f0a06] via-[#0f0a06]/48 to-black/10" />
 
@@ -275,7 +284,7 @@ const SelectedPlaceSheet: React.FC<ISelectedPlaceSheetProps> = ({ place, listing
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-nz-muted">
             <span className="inline-flex items-center gap-1.5">
               <Star size={15} className="text-nz-apricot" aria-hidden="true" />
-              Rating unavailable
+              {place.rating !== undefined ? place.rating.toFixed(1) : 'Rating unavailable'}
             </span>
             <span aria-hidden="true">&bull;</span>
             <span>{category}</span>
@@ -296,7 +305,7 @@ const SelectedPlaceSheet: React.FC<ISelectedPlaceSheetProps> = ({ place, listing
       <AddVenueCTA place={place} />
 
       <p className="pb-1 text-center font-mono text-[9px] uppercase tracking-wider text-nz-muted/45">
-        Data (c) OpenStreetMap contributors
+        {place.source === 'google' ? 'Data from Google' : 'Data © OpenStreetMap contributors'}
       </p>
     </div>
   );

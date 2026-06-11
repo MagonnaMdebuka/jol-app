@@ -7,9 +7,13 @@ export const isSupabaseEnabled = (): boolean => !!(getSupabaseUrl() && getSupaba
 export const getFoursquareApiKey = (): string => import.meta.env.VITE_FOURSQUARE_API_KEY ?? '';
 export const isFoursquareEnabled = (): boolean => !!getFoursquareApiKey();
 
-// Google Places API (fallback)
-export const getGooglePlacesApiKey = (): string => import.meta.env.VITE_GOOGLE_PLACES_API_KEY ?? '';
-export const isGooglePlacesEnabled = (): boolean => !!getGooglePlacesApiKey();
+// Google Maps API (includes Places, Geocoding, etc.)
+export const getGoogleMapsApiKey = (): string => import.meta.env.VITE_GOOGLE_MAPS_API_KEY ?? '';
+export const isGoogleMapsEnabled = (): boolean => !!getGoogleMapsApiKey();
+
+// Legacy alias for backward compatibility
+export const getGooglePlacesApiKey = getGoogleMapsApiKey;
+export const isGooglePlacesEnabled = isGoogleMapsEnabled;
 
 // Any place search API available
 export const isPlaceSearchEnabled = (): boolean => isFoursquareEnabled() || isGooglePlacesEnabled();

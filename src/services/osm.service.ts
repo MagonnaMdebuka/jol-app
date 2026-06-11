@@ -11,6 +11,10 @@ export interface IOsmPlace {
   lat: number;
   lng: number;
   distance_metres: number | null;
+  // Extended fields for external place APIs (Google, etc.)
+  photo_url?: string;
+  rating?: number;
+  source?: 'osm' | 'google' | 'foursquare';
 }
 
 // ─────────────────────────────────────────────────────────────

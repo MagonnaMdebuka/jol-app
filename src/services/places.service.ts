@@ -15,9 +15,34 @@ import type {
   IGooglePlacesResponse,
   IGooglePlace,
 } from '../types/place.types';
+import type { IOsmPlace } from './osm.service';
 
 const FOURSQUARE_BASE_URL = 'https://api.foursquare.com/v3/places';
-const GOOGLE_PLACES_URL = 'https://places.googleapis.com/v1/places:searchText';
+const GOOGLE_PLACES_TEXT_URL = 'https://places.googleapis.com/v1/places:searchText';
+const GOOGLE_PLACES_NEARBY_URL = 'https://places.googleapis.com/v1/places:searchNearby';
+
+// Google Places types relevant to Jol (nightlife & food discovery)
+const GOOGLE_PLACE_TYPES = [
+  'restaurant',
+  'bar',
+  'night_club',
+  'cafe',
+  'pub',
+  'lounge',
+  'fast_food_restaurant',
+  'cocktail_bar',
+  'wine_bar',
+  'steak_house',
+  'seafood_restaurant',
+  'pizza_restaurant',
+  'sushi_restaurant',
+  'fine_dining_restaurant',
+  'brunch_restaurant',
+  'movie_theater',
+  'casino',
+  'event_venue',
+  'performing_arts_theater',
+];
 
 // ============ Foursquare ============
 
@@ -98,19 +123,21 @@ const transformGooglePlace = (place: IGooglePlace, apiKey: string): IPlaceResult
   };
 };
 
+const GOOGLE_FIELD_MASK =
+  'places.id,places.displayName,places.formattedAddress,places.location,places.primaryType,places.primaryTypeDisplayName,places.photos,places.rating';
+
 const searchGoogle = async (query: string, lat: number, lng: number): Promise<IPlaceResult[]> => {
   if (!isGooglePlacesEnabled()) return [];
 
   const apiKey = getGooglePlacesApiKey();
 
   try {
-    const response = await fetch(GOOGLE_PLACES_URL, {
+    const response = await fetch(GOOGLE_PLACES_TEXT_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'X-Goog-Api-Key': apiKey,
-        'X-Goog-FieldMask':
-          'places.id,places.displayName,places.formattedAddress,places.location,places.primaryType,places.primaryTypeDisplayName,places.photos,places.rating',
+        'X-Goog-FieldMask': GOOGLE_FIELD_MASK,
       },
       body: JSON.stringify({
         textQuery: query,
@@ -131,6 +158,137 @@ const searchGoogle = async (query: string, lat: number, lng: number): Promise<IP
     return [];
   }
 };
+
+/**
+ * Search Google Places with text query for discovery
+ * Includes type filtering for nightlife/food venues
+ */
+export const searchGooglePlaces = async (
+  query: string,
+  lat: number,
+  lng: number,
+  limit: number = 20,
+): Promise<IPlaceResult[]> => {
+  if (!isGooglePlacesEnabled()) return [];
+
+  const apiKey = getGooglePlacesApiKey();
+
+  try {
+    const response = await fetch(GOOGLE_PLACES_TEXT_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Goog-Api-Key': apiKey,
+        'X-Goog-FieldMask': GOOGLE_FIELD_MASK,
+      },
+      body: JSON.stringify({
+        textQuery: query,
+        includedType: undefined, // Let Google infer from query
+        locationBias: {
+          circle: {
+            center: { latitude: lat, longitude: lng },
+            radius: 10000.0, // 10km radius for broader discovery
+          },
+        },
+        maxResultCount: Math.min(limit, 20), // Google max is 20
+      }),
+    });
+
+    if (!response.ok) {
+      console.warn('[Google Places] Text search failed:', response.status);
+      return [];
+    }
+    const data: IGooglePlacesResponse = await response.json();
+    return (data.places ?? []).map((p) => transformGooglePlace(p, apiKey));
+  } catch (e) {
+    console.warn('[Google Places] Text search error:', e);
+    return [];
+  }
+};
+
+/**
+ * Search nearby places using Google Places Nearby Search
+ * Great for "what's around me" discovery
+ */
+export const searchGoogleNearby = async (
+  lat: number,
+  lng: number,
+  radiusMetres: number = 5000,
+  limit: number = 20,
+): Promise<IPlaceResult[]> => {
+  if (!isGooglePlacesEnabled()) return [];
+
+  const apiKey = getGooglePlacesApiKey();
+
+  try {
+    const response = await fetch(GOOGLE_PLACES_NEARBY_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Goog-Api-Key': apiKey,
+        'X-Goog-FieldMask': GOOGLE_FIELD_MASK,
+      },
+      body: JSON.stringify({
+        includedTypes: GOOGLE_PLACE_TYPES,
+        locationRestriction: {
+          circle: {
+            center: { latitude: lat, longitude: lng },
+            radius: radiusMetres,
+          },
+        },
+        maxResultCount: Math.min(limit, 20),
+      }),
+    });
+
+    if (!response.ok) {
+      console.warn('[Google Places] Nearby search failed:', response.status);
+      return [];
+    }
+    const data: IGooglePlacesResponse = await response.json();
+    return (data.places ?? []).map((p) => transformGooglePlace(p, apiKey));
+  } catch (e) {
+    console.warn('[Google Places] Nearby search error:', e);
+    return [];
+  }
+};
+
+// ============ Conversion to OSM-compatible format ============
+
+const haversine = (lat1: number, lng1: number, lat2: number, lng2: number): number => {
+  const R = 6371000;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLng = ((lng2 - lng1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+};
+
+/**
+ * Convert Google Places result to OSM-compatible format
+ * Enables reuse of existing OSM UI components
+ */
+export const placeResultToOsmFormat = (
+  place: IPlaceResult,
+  refLat: number | null,
+  refLng: number | null,
+): IOsmPlace => ({
+  osm_id: parseInt(place.google_place_id?.replace(/[^0-9]/g, '') ?? '0', 10) || Date.now(),
+  osm_type: 'node',
+  name: place.name,
+  address: place.address,
+  suburb: null, // Google doesn't separate suburb
+  amenity: place.category.toLowerCase().replace(/\s+/g, '_'),
+  cuisine: null,
+  lat: place.lat,
+  lng: place.lng,
+  distance_metres:
+    refLat !== null && refLng !== null ? haversine(refLat, refLng, place.lat, place.lng) : null,
+  // Extended fields for Google data
+  photo_url: place.photo_url ?? undefined,
+  rating: place.rating ?? undefined,
+  source: 'google' as const,
+});
 
 // ============ Unified Search with Fallback ============
 

@@ -14,6 +14,8 @@ import {
   overpassAreaSearch,
 } from '../services/osm.service';
 import type { IOsmPlace } from '../services/osm.service';
+import { isGooglePlacesEnabled } from '../config/env';
+import { searchGooglePlaces, placeResultToOsmFormat } from '../services/places.service';
 
 const TRENDING_TAGS = [
   'Amapiano',
@@ -206,6 +208,8 @@ const Search: React.FC = () => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     const trimmed = query.trim();
     const skip = !trimmed || trimmed.length < 3; // Require at least 3 characters
+    const useGoogle = isGooglePlacesEnabled();
+
     debounceRef.current = setTimeout(
       () => {
         if (skip) {
@@ -221,66 +225,97 @@ const Search: React.FC = () => {
           setCurrentLimit(INITIAL_LIMIT);
           const { lat, lng } = locationRef.current;
           const intentTypes = getSearchIntentTypes(query);
+          const searchLat = lat ?? -26.0; // Gauteng fallback
+          const searchLng = lng ?? 28.0;
 
-          if (knownArea) {
-            const hasLoc = lat !== null && lng !== null;
-            const refLat = lat ?? knownArea.lat;
-            const refLng = lng ?? knownArea.lng;
-            overpassAreaSearch(
-              knownArea.lat,
-              knownArea.lng,
-              refLat,
-              refLng,
-              hasLoc,
-              INITIAL_LIMIT,
-              intentTypes,
-              knownArea.radiusMetres,
-            )
-              .then((places) =>
-                setOsmResults(
-                  places.sort((a, b) => (a.distance_metres ?? 0) - (b.distance_metres ?? 0)),
-                ),
-              )
-              .catch(() => setOsmResults([]))
-              .finally(() => setOsmLoading(false));
+          // Try Google Places first if enabled
+          if (useGoogle) {
+            searchGooglePlaces(query, searchLat, searchLng, INITIAL_LIMIT)
+              .then((places) => {
+                if (places.length > 0) {
+                  const osmFormatted = places.map((p) => placeResultToOsmFormat(p, lat, lng));
+                  setOsmResults(
+                    osmFormatted.sort(
+                      (a, b) => (a.distance_metres ?? 0) - (b.distance_metres ?? 0),
+                    ),
+                  );
+                  setOsmLoading(false);
+                  return;
+                }
+                // Fall back to OSM if Google returns no results
+                fallbackToOsm();
+              })
+              .catch(() => {
+                // Fall back to OSM on error
+                fallbackToOsm();
+              });
             return;
           }
 
-          // First try normal search
-          searchOsmPlaces(query, lat, lng)
-            .then(async (places) => {
-              if (places.length > 0) {
-                setOsmResults(places);
-                return;
-              }
-              // If no results, try geocoding for area search
-              const coord = await geocodePlace(query);
-              if (coord) {
-                setAreaCoords(coord);
-                const hasLoc = lat !== null && lng !== null;
-                const refLat = lat ?? coord.lat;
-                const refLng = lng ?? coord.lng;
-                const areaPlaces = await overpassAreaSearch(
-                  coord.lat,
-                  coord.lng,
-                  refLat,
-                  refLng,
-                  hasLoc,
-                  INITIAL_LIMIT,
-                  intentTypes,
-                );
-                setOsmResults(
-                  areaPlaces.sort((a, b) => (a.distance_metres ?? 0) - (b.distance_metres ?? 0)),
-                );
-              } else {
-                setOsmResults([]);
-              }
-            })
-            .catch(() => setOsmResults([]))
-            .finally(() => setOsmLoading(false));
+          // OSM-only path
+          fallbackToOsm();
+
+          function fallbackToOsm(): void {
+            if (knownArea) {
+              const hasLoc = lat !== null && lng !== null;
+              const refLat = lat ?? knownArea.lat;
+              const refLng = lng ?? knownArea.lng;
+              overpassAreaSearch(
+                knownArea.lat,
+                knownArea.lng,
+                refLat,
+                refLng,
+                hasLoc,
+                INITIAL_LIMIT,
+                intentTypes,
+                knownArea.radiusMetres,
+              )
+                .then((places) =>
+                  setOsmResults(
+                    places.sort((a, b) => (a.distance_metres ?? 0) - (b.distance_metres ?? 0)),
+                  ),
+                )
+                .catch(() => setOsmResults([]))
+                .finally(() => setOsmLoading(false));
+              return;
+            }
+
+            // First try normal search
+            searchOsmPlaces(query, lat, lng)
+              .then(async (places) => {
+                if (places.length > 0) {
+                  setOsmResults(places);
+                  return;
+                }
+                // If no results, try geocoding for area search
+                const coord = await geocodePlace(query);
+                if (coord) {
+                  setAreaCoords(coord);
+                  const hasLoc = lat !== null && lng !== null;
+                  const refLat = lat ?? coord.lat;
+                  const refLng = lng ?? coord.lng;
+                  const areaPlaces = await overpassAreaSearch(
+                    coord.lat,
+                    coord.lng,
+                    refLat,
+                    refLng,
+                    hasLoc,
+                    INITIAL_LIMIT,
+                    intentTypes,
+                  );
+                  setOsmResults(
+                    areaPlaces.sort((a, b) => (a.distance_metres ?? 0) - (b.distance_metres ?? 0)),
+                  );
+                } else {
+                  setOsmResults([]);
+                }
+              })
+              .catch(() => setOsmResults([]))
+              .finally(() => setOsmLoading(false));
+          }
         }
       },
-      skip ? 0 : 800, // Longer debounce to respect Nominatim rate limits
+      skip ? 0 : useGoogle ? 300 : 800, // Shorter debounce for Google (no rate limits)
     );
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -405,7 +440,10 @@ const Search: React.FC = () => {
                   <OsmLoadingState />
                 ) : osmResults.length > 0 ? (
                   <>
-                    <MonoLabel>NEARBY PLACES — {osmResults.length} FROM OPENSTREETMAP</MonoLabel>
+                    <MonoLabel>
+                      NEARBY PLACES — {osmResults.length} FROM{' '}
+                      {osmResults[0]?.source === 'google' ? 'GOOGLE' : 'OPENSTREETMAP'}
+                    </MonoLabel>
                     <div className="flex flex-col gap-2.5">
                       {osmResults.map((p) => (
                         <OsmCard
