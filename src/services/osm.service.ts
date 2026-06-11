@@ -217,10 +217,12 @@ export const geocodePlace = async (q: string): Promise<{ lat: number; lng: numbe
   const p = new URLSearchParams({ q, format: 'json', countrycodes: 'za', limit: '1' });
   try {
     const res = await fetch(`https://nominatim.openstreetmap.org/search?${p}`, {
-      signal: AbortSignal.timeout(4000),
+      headers: { 'User-Agent': 'JolApp/1.0 (https://jol.co.za)' },
+      signal: AbortSignal.timeout(6000),
     });
+    if (!res.ok) return null;
     const d = await res.json();
-    if (!d[0] || d[0].class === 'amenity') return null;
+    if (!Array.isArray(d) || !d[0] || d[0].class === 'amenity') return null;
     return { lat: parseFloat(d[0].lat), lng: parseFloat(d[0].lon) };
   } catch {
     return null;
@@ -407,18 +409,25 @@ const nominatimSearch = async (
     addressdetails: '1',
     extratags: '1',
     viewbox,
-    bounded: '1',
+    bounded: '0', // Don't strictly bound - allow results outside viewbox ranked lower
   });
   try {
     const res = await fetch(`https://nominatim.openstreetmap.org/search?${params}`, {
-      signal: AbortSignal.timeout(8000),
+      headers: {
+        'User-Agent': 'JolApp/1.0 (https://jol.co.za)',
+      },
+      signal: AbortSignal.timeout(10000),
     });
-    if (res.ok) return res.json();
-    console.warn(`[OSM] Nominatim ${res.status}`);
+    if (!res.ok) {
+      console.warn(`[OSM] Nominatim returned ${res.status}`);
+      return [];
+    }
+    const data = await res.json();
+    return Array.isArray(data) ? data : [];
   } catch (e) {
-    console.warn('[OSM] Nominatim failed', e);
+    console.warn('[OSM] Nominatim request failed:', e);
+    return [];
   }
-  return [];
 };
 
 /** Parse Nominatim results into IOsmPlace[] */
