@@ -7,6 +7,7 @@ import React, {
   type ReactNode,
 } from 'react';
 import { getNearbyListings } from '../services/listing.service';
+import { fetchNearbyPlaces, mergeListingsWithPlaces } from '../services/hybrid.service';
 import { GAUTENG_CENTER } from '../constants/mapConfig';
 import type { IListingWithDistance } from '../types/listing.types';
 import type { VibeFilterId } from '../constants/categories';
@@ -105,8 +106,16 @@ const ListingsProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
       setLoading(true);
       const centerLat = lat ?? GAUTENG_CENTER.lat;
       const centerLng = lng ?? GAUTENG_CENTER.lng;
-      const data = await getNearbyListings(centerLat, centerLng, filters.radius);
-      setListings(data);
+
+      // Fetch both owner listings and external places in parallel
+      const [ownerListings, externalPlaces] = await Promise.all([
+        getNearbyListings(centerLat, centerLng, filters.radius),
+        fetchNearbyPlaces(centerLat, centerLng, filters.radius, 30),
+      ]);
+
+      // Merge: owner listings take priority, OSM/Google fills the gaps
+      const merged = mergeListingsWithPlaces(ownerListings, externalPlaces);
+      setListings(merged);
       setLoading(false);
     };
     fetchListings();
