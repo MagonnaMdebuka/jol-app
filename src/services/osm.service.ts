@@ -69,9 +69,10 @@ const isCacheStale = (entry: ICacheEntry): boolean => Date.now() - entry.timesta
 // ─────────────────────────────────────────────────────────────
 
 const OVERPASS_SERVERS = [
+  'https://overpass.openstreetmap.ru/api/interpreter', // Russian mirror, good CORS
   'https://overpass.kumi.systems/api/interpreter',
-  'https://overpass-api.de/api/interpreter',
-  'https://maps.mail.ru/osm/tools/overpass/api/interpreter',
+  'https://z.overpass-api.de/api/interpreter', // Alternative endpoint
+  'https://lz4.overpass-api.de/api/interpreter', // LZ4 compressed endpoint
 ];
 
 // ─────────────────────────────────────────────────────────────
@@ -517,7 +518,29 @@ export const searchOsmPlaces = async (
   const coord = await geocodePlace(query);
   if (!coord) return [];
   const areaResults = await overpassAreaSearch(coord.lat, coord.lng, lat, lng, hasLocation);
-  return areaResults.sort((a, b) => (a.distance_metres ?? 0) - (b.distance_metres ?? 0));
+  if (areaResults.length > 0) {
+    return areaResults.sort((a, b) => (a.distance_metres ?? 0) - (b.distance_metres ?? 0));
+  }
+
+  // Step 4 — Overpass failed (CORS/timeout). Try Nominatim POI search as last resort.
+  // Search for restaurant/cafe/bar near the geocoded area
+  const poiViewbox = `${coord.lng - 0.06},${coord.lat + 0.06},${coord.lng + 0.06},${coord.lat - 0.06}`;
+  const poiQueries = ['restaurant', 'cafe', 'bar', 'nightclub'];
+  const poiResults: IOsmPlace[] = [];
+  for (const poiType of poiQueries) {
+    const poiSearch = await nominatimSearch(`${poiType} ${query}`, poiViewbox);
+    const parsed = parseNominatimResults(poiSearch, lat, lng, hasLocation);
+    poiResults.push(...parsed);
+    if (poiResults.length >= 15) break; // Stop early if we have enough
+  }
+  // Dedupe by osm_id
+  const seen = new Set<number>();
+  const deduped = poiResults.filter((p) => {
+    if (seen.has(p.osm_id)) return false;
+    seen.add(p.osm_id);
+    return true;
+  });
+  return deduped.sort((a, b) => (a.distance_metres ?? 0) - (b.distance_metres ?? 0)).slice(0, 20);
 };
 
 // ─────────────────────────────────────────────────────────────
