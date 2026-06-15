@@ -1,8 +1,14 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  Edit2, Trash2, Eye, PlusCircle, Building2,
-  CheckCircle, ChevronRight, Heart,
+  Edit2,
+  Trash2,
+  Eye,
+  PlusCircle,
+  Building2,
+  CheckCircle,
+  ChevronRight,
+  Heart,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { getOwnerListings, softDeleteListing } from '../../services/listing.service';
@@ -11,17 +17,10 @@ import { useToast } from '../../components/ui/Toast';
 import Badge from '../../components/ui/Badge';
 import Spinner from '../../components/ui/Spinner';
 import Button from '../../components/ui/Button';
+import MonoLabel from '../../components/ui/MonoLabel';
+import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import type { IListing } from '../../types/listing.types';
 import type { IVenue } from '../../types/venue.types';
-
-const MonoLabel: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <p
-    className="text-nz-muted"
-    style={{ fontFamily: '"JetBrains Mono", monospace', fontSize: '9px', letterSpacing: '0.04em', fontWeight: 500 }}
-  >
-    {children}
-  </p>
-);
 
 const Dashboard: React.FC = () => {
   const { authUser, user } = useAuth();
@@ -29,6 +28,8 @@ const Dashboard: React.FC = () => {
   const [listings, setListings] = useState<IListing[]>([]);
   const [venues, setVenues] = useState<IVenue[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deleteTarget, setDeleteTarget] = useState<IListing | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const ownerId = authUser?.id ?? 'owner-1';
 
@@ -42,18 +43,27 @@ const Dashboard: React.FC = () => {
     load();
   }, [ownerId]);
 
-  const handleDelete = useCallback(
-    async (id: string) => {
-      const { error } = await softDeleteListing(id);
-      if (error) {
-        toast('Failed to deactivate listing', 'error');
-        return;
-      }
-      setListings((prev) => prev.filter((l) => l.id !== id));
+  const handleDeleteClick = useCallback((listing: IListing) => {
+    setDeleteTarget(listing);
+  }, []);
+
+  const handleDeleteCancel = useCallback(() => {
+    setDeleteTarget(null);
+  }, []);
+
+  const handleDeleteConfirm = useCallback(async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    const { error } = await softDeleteListing(deleteTarget.id);
+    if (error) {
+      toast('Failed to deactivate listing', 'error');
+    } else {
+      setListings((prev) => prev.filter((l) => l.id !== deleteTarget.id));
       toast('Listing deactivated', 'info');
-    },
-    [toast],
-  );
+    }
+    setDeleting(false);
+    setDeleteTarget(null);
+  }, [deleteTarget, toast]);
 
   const activeCount = listings.filter((l) => l.status === 'active').length;
   const totalViews = listings.reduce((sum, l) => sum + l.view_count, 0);
@@ -81,7 +91,8 @@ const Dashboard: React.FC = () => {
             fontSize: '38px',
           }}
         >
-          Howzit,{'\n'}{user?.display_name ?? 'owner'}.
+          Howzit,{'\n'}
+          {user?.display_name ?? 'owner'}.
         </h1>
       </div>
 
@@ -95,9 +106,7 @@ const Dashboard: React.FC = () => {
           <div
             key={label}
             className={`rounded-2xl p-4 flex flex-col gap-2 ${
-              accent
-                ? 'border border-nz-accent/30'
-                : 'bg-nz-surface border border-nz-border'
+              accent ? 'border border-nz-accent/30' : 'bg-nz-surface border border-nz-border'
             }`}
             style={accent ? { background: 'rgba(255,122,61,0.12)' } : {}}
           >
@@ -121,7 +130,11 @@ const Dashboard: React.FC = () => {
         <div className="flex items-center justify-between mb-4">
           <h2
             className="text-nz-text"
-            style={{ fontFamily: '"Bricolage Grotesque", system-ui', fontWeight: 800, fontSize: '18px' }}
+            style={{
+              fontFamily: '"Bricolage Grotesque", system-ui',
+              fontWeight: 800,
+              fontSize: '18px',
+            }}
           >
             My Venues
           </h2>
@@ -144,7 +157,9 @@ const Dashboard: React.FC = () => {
               <p className="text-nz-muted text-xs mt-1">Set up a venue to start posting listings</p>
             </div>
             <Link to="/owner/venue/setup">
-              <Button size="sm" variant="secondary">Set up a venue</Button>
+              <Button size="sm" variant="secondary">
+                Set up a venue
+              </Button>
             </Link>
           </div>
         ) : (
@@ -159,6 +174,7 @@ const Dashboard: React.FC = () => {
                     src={v.cover_photo}
                     alt=""
                     className="h-[64px] w-[64px] rounded-[12px] object-cover shrink-0 border border-nz-border"
+                    loading="lazy"
                   />
                 ) : (
                   <div className="h-[64px] w-[64px] rounded-[12px] shrink-0 bg-nz-elevated border border-nz-border flex items-center justify-center">
@@ -176,7 +192,11 @@ const Dashboard: React.FC = () => {
                       <span className="w-1.5 h-1.5 rounded-full bg-green-400 shrink-0" />
                       <span
                         className="text-green-400"
-                        style={{ fontFamily: '"JetBrains Mono", monospace', fontSize: '8px', letterSpacing: '0.04em' }}
+                        style={{
+                          fontFamily: '"JetBrains Mono", monospace',
+                          fontSize: '8px',
+                          letterSpacing: '0.04em',
+                        }}
                       >
                         LIVE
                       </span>
@@ -197,12 +217,18 @@ const Dashboard: React.FC = () => {
         <div className="flex items-center justify-between mb-4">
           <h2
             className="text-nz-text"
-            style={{ fontFamily: '"Bricolage Grotesque", system-ui', fontWeight: 800, fontSize: '18px' }}
+            style={{
+              fontFamily: '"Bricolage Grotesque", system-ui',
+              fontWeight: 800,
+              fontSize: '18px',
+            }}
           >
             My Listings
           </h2>
           <Link to="/owner/listings/new">
-            <Button size="sm" icon={<PlusCircle size={14} />}>New Listing</Button>
+            <Button size="sm" icon={<PlusCircle size={14} />}>
+              New Listing
+            </Button>
           </Link>
         </div>
 
@@ -210,10 +236,14 @@ const Dashboard: React.FC = () => {
           <div className="bg-nz-surface border border-dashed border-nz-border/60 rounded-2xl p-8 flex flex-col items-center gap-4 text-nz-muted">
             <div className="text-center">
               <p className="text-nz-text/80 font-semibold text-sm">No listings yet</p>
-              <p className="text-nz-muted text-xs mt-1">Create your first listing to get discovered</p>
+              <p className="text-nz-muted text-xs mt-1">
+                Create your first listing to get discovered
+              </p>
             </div>
             <Link to="/owner/listings/new">
-              <Button size="sm" variant="secondary">Create first listing</Button>
+              <Button size="sm" variant="secondary">
+                Create first listing
+              </Button>
             </Link>
           </div>
         ) : (
@@ -228,10 +258,13 @@ const Dashboard: React.FC = () => {
                     src={l.images[0]}
                     alt=""
                     className="h-[64px] w-[64px] rounded-[12px] object-cover shrink-0 border border-nz-border"
+                    loading="lazy"
                   />
                 ) : (
                   <div className="h-[64px] w-[64px] rounded-[12px] shrink-0 bg-nz-elevated border border-nz-border flex items-center justify-center">
-                    <span className="text-nz-muted/40 text-xl">{l.type === 'event' ? '◈' : '⌇'}</span>
+                    <span className="text-nz-muted/40 text-xl">
+                      {l.type === 'event' ? '◈' : '⌇'}
+                    </span>
                   </div>
                 )}
                 <div className="flex-1 min-w-0">
@@ -269,12 +302,14 @@ const Dashboard: React.FC = () => {
                   <Link
                     to={`/owner/listings/${l.id}/edit`}
                     className="p-2.5 rounded-xl text-nz-muted hover:text-nz-accent hover:bg-nz-accent/10 border border-transparent hover:border-nz-accent/20 transition-all duration-200"
+                    aria-label={`Edit ${l.title}`}
                   >
                     <Edit2 size={15} />
                   </Link>
                   <button
-                    onClick={() => handleDelete(l.id)}
+                    onClick={() => handleDeleteClick(l)}
                     className="p-2.5 rounded-xl text-nz-muted hover:text-red-400 hover:bg-red-500/10 border border-transparent hover:border-red-500/20 transition-all duration-200"
+                    aria-label={`Delete ${l.title}`}
                   >
                     <Trash2 size={15} />
                   </button>
@@ -296,14 +331,32 @@ const Dashboard: React.FC = () => {
       >
         <p
           className="text-nz-accent mb-1"
-          style={{ fontFamily: '"JetBrains Mono", monospace', fontSize: '9px', letterSpacing: '0.04em' }}
+          style={{
+            fontFamily: '"JetBrains Mono", monospace',
+            fontSize: '9px',
+            letterSpacing: '0.04em',
+          }}
         >
           PRO TIP
         </p>
         <p className="text-nz-text text-sm leading-relaxed">
-          Listings with photos and clear entry fee info get <span className="text-nz-accent-text font-semibold">3x more views</span>. Add a cover photo to every listing.
+          Listings with photos and clear entry fee info get{' '}
+          <span className="text-nz-accent-text font-semibold">3x more views</span>. Add a cover
+          photo to every listing.
         </p>
       </div>
+
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        onClose={handleDeleteCancel}
+        onConfirm={handleDeleteConfirm}
+        title="Deactivate listing?"
+        message={`This will remove "${deleteTarget?.title ?? 'this listing'}" from public view. You can reactivate it later.`}
+        confirmLabel="Deactivate"
+        cancelLabel="Keep it"
+        variant="danger"
+        loading={deleting}
+      />
     </div>
   );
 };

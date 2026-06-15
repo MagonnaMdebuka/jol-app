@@ -45,6 +45,7 @@ const Modal: React.FC<IModalProps> = ({ open, onClose, title, children }) => {
               onClick={onClose}
               className="p-1.5 rounded-xl text-nz-muted hover:text-nz-text hover:bg-white/5 transition-all duration-200"
               type="button"
+              aria-label="Close modal"
             >
               <X size={18} />
             </button>

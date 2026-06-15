@@ -4,6 +4,7 @@ import React, {
   useState,
   useCallback,
   useEffect,
+  useMemo,
   type ReactNode,
 } from 'react';
 import { useAuth } from './AuthContext';
@@ -81,11 +82,12 @@ const InterestedProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     [interestedIds],
   );
 
-  return (
-    <InterestedContext.Provider value={{ interestedIds, toggleInterested, isInterested, loading }}>
-      {children}
-    </InterestedContext.Provider>
+  const contextValue = useMemo(
+    () => ({ interestedIds, toggleInterested, isInterested, loading }),
+    [interestedIds, toggleInterested, isInterested, loading],
   );
+
+  return <InterestedContext.Provider value={contextValue}>{children}</InterestedContext.Provider>;
 };
 
 export default InterestedProvider;

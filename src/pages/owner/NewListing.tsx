@@ -9,6 +9,7 @@ import { EVENT_TAGS, CUISINE_TYPES, PRICE_RANGES } from '../../constants/categor
 import { useToast } from '../../components/ui/Toast';
 import Input from '../../components/ui/Input';
 import Button from '../../components/ui/Button';
+import MonoLabel from '../../components/ui/MonoLabel';
 import ImageUploader from '../../components/listings/ImageUploader';
 import ListingPreviewModal from '../../components/listings/ListingPreviewModal';
 import type { IVenue } from '../../types/venue.types';
@@ -31,20 +32,6 @@ const DRESS_CHIP_OPTIONS = ['Casual', 'Smart Casual', 'Formal', 'Any'];
 
 const SELECT_CLASS =
   'w-full bg-nz-elevated/80 border border-nz-border/60 hover:border-nz-border rounded-xl px-4 py-3 text-nz-text text-sm outline-none transition-all duration-200 focus:ring-2 focus:ring-nz-accent/50 focus:border-nz-accent/40';
-
-const MonoLabel: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <p
-    className="text-nz-muted mb-2"
-    style={{
-      fontFamily: '"JetBrains Mono", monospace',
-      fontSize: '9px',
-      letterSpacing: '0.04em',
-      fontWeight: 500,
-    }}
-  >
-    {children}
-  </p>
-);
 
 const NewListing: React.FC = () => {
   const { authUser } = useAuth();
@@ -311,7 +298,7 @@ const NewListing: React.FC = () => {
 
       {/* Photos */}
       <div>
-        <MonoLabel>PHOTOS</MonoLabel>
+        <MonoLabel className="mb-2">PHOTOS</MonoLabel>
         <ImageUploader
           bucket="listing-images"
           ownerId={ownerId}
@@ -321,7 +308,7 @@ const NewListing: React.FC = () => {
 
       {/* Core details */}
       <div className="flex flex-col gap-4">
-        <MonoLabel>LISTING DETAILS</MonoLabel>
+        <MonoLabel className="mb-2">LISTING DETAILS</MonoLabel>
 
         {/* Venue selector */}
         {venues.length > 0 ? (
@@ -394,7 +381,7 @@ const NewListing: React.FC = () => {
       {/* Event-specific section */}
       {type === 'event' && (
         <div className="flex flex-col gap-4 bg-nz-surface border border-nz-border/60 rounded-2xl p-4">
-          <MonoLabel>EVENT DETAILS</MonoLabel>
+          <MonoLabel className="mb-2">EVENT DETAILS</MonoLabel>
 
           <div className="grid grid-cols-2 gap-3">
             <Input
@@ -419,7 +406,7 @@ const NewListing: React.FC = () => {
           />
 
           <div>
-            <MonoLabel>DRESS CODE</MonoLabel>
+            <MonoLabel className="mb-2">DRESS CODE</MonoLabel>
             <div className="flex flex-wrap gap-2">
               {DRESS_CHIP_OPTIONS.map((d) => (
                 <button
@@ -463,7 +450,7 @@ const NewListing: React.FC = () => {
           />
 
           <div>
-            <MonoLabel>GENRE / VIBE TAGS</MonoLabel>
+            <MonoLabel className="mb-2">GENRE / VIBE TAGS</MonoLabel>
             <div className="flex flex-wrap gap-2">
               {GENRE_VIBES.map((tag) => (
                 <button
@@ -509,7 +496,7 @@ const NewListing: React.FC = () => {
       {/* Food-specific section */}
       {type === 'food' && (
         <div className="flex flex-col gap-4 bg-nz-surface border border-nz-border/60 rounded-2xl p-4">
-          <MonoLabel>FOOD DETAILS</MonoLabel>
+          <MonoLabel className="mb-2">FOOD DETAILS</MonoLabel>
 
           <div className="flex flex-col gap-1.5">
             <label

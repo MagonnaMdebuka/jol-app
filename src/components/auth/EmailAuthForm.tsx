@@ -90,6 +90,7 @@ const EmailAuthForm: React.FC<IEmailAuthFormProps> = ({
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="Your name"
+          autoComplete="name"
         />
       )}
       <Input
@@ -98,6 +99,7 @@ const EmailAuthForm: React.FC<IEmailAuthFormProps> = ({
         value={email}
         onChange={(e) => setEmail(e.target.value)}
         placeholder="you@example.com"
+        autoComplete="email"
       />
       <div>
         <Input
@@ -106,6 +108,7 @@ const EmailAuthForm: React.FC<IEmailAuthFormProps> = ({
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           placeholder="••••••••"
+          autoComplete={mode === 'register' ? 'new-password' : 'current-password'}
         />
         {mode === 'login' && onForgotPassword && (
           <button
@@ -124,6 +127,7 @@ const EmailAuthForm: React.FC<IEmailAuthFormProps> = ({
           value={confirm}
           onChange={(e) => setConfirm(e.target.value)}
           placeholder="••••••••"
+          autoComplete="new-password"
         />
       )}
       <Button onClick={handleSubmit} loading={loading} size="lg" className="w-full">

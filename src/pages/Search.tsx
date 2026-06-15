@@ -5,6 +5,7 @@ import { NEIGHBOURHOODS, NEIGHBOURHOOD_AREAS } from '../constants/categories';
 import { RowCard } from '../components/listings/ListingCard';
 import Chip from '../components/ui/Chip';
 import BottomSheet from '../components/ui/BottomSheet';
+import MonoLabel from '../components/ui/MonoLabel';
 import OsmCard from '../components/search/OsmCard';
 import SelectedPlaceSheet from '../components/search/SelectedPlaceSheet';
 import {
@@ -27,20 +28,6 @@ const TRENDING_TAGS = [
   'Braai',
   'Free entry',
 ];
-
-const MonoLabel: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <p
-    className="text-nz-muted mb-2"
-    style={{
-      fontFamily: '"JetBrains Mono", monospace',
-      fontSize: '9px',
-      letterSpacing: '0.04em',
-      fontWeight: 500,
-    }}
-  >
-    {children}
-  </p>
-);
 
 const normalize = (value: string): string => value.trim().toLowerCase();
 
@@ -395,7 +382,7 @@ const Search: React.FC = () => {
           {!showResults ? (
             <>
               <section className="mb-6">
-                <MonoLabel>TRENDING SEARCHES</MonoLabel>
+                <MonoLabel className="mb-2">TRENDING SEARCHES</MonoLabel>
                 <div className="flex flex-wrap gap-2">
                   {TRENDING_TAGS.map((tag) => (
                     <Chip key={tag} onClick={() => handleTagPress(tag)}>
@@ -405,7 +392,7 @@ const Search: React.FC = () => {
                 </div>
               </section>
               <section>
-                <MonoLabel>NEIGHBOURHOODS</MonoLabel>
+                <MonoLabel className="mb-2">NEIGHBOURHOODS</MonoLabel>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                   {NEIGHBOURHOODS.map((n) => (
                     <button
@@ -424,7 +411,7 @@ const Search: React.FC = () => {
             <>
               {jolResults.length > 0 && (
                 <section className="mb-6">
-                  <MonoLabel>
+                  <MonoLabel className="mb-2">
                     ON JOL — {jolResults.length} RESULT{jolResults.length !== 1 ? 'S' : ''}
                   </MonoLabel>
                   <div className="flex flex-col gap-2.5">
@@ -440,7 +427,7 @@ const Search: React.FC = () => {
                   <OsmLoadingState />
                 ) : osmResults.length > 0 ? (
                   <>
-                    <MonoLabel>
+                    <MonoLabel className="mb-2">
                       NEARBY PLACES — {osmResults.length} FROM{' '}
                       {osmResults[0]?.source === 'google' ? 'GOOGLE' : 'OPENSTREETMAP'}
                     </MonoLabel>

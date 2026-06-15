@@ -4,6 +4,7 @@ import React, {
   useEffect,
   useState,
   useCallback,
+  useMemo,
   type ReactNode,
 } from 'react';
 import { getNearbyListings } from '../services/listing.service';
@@ -121,23 +122,25 @@ const ListingsProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     fetchListings();
   }, [lat, lng, filters.radius]);
 
-  const filteredListings = applyClientFilters(listings, filters);
-
-  return (
-    <ListingsContext.Provider
-      value={{
-        listings,
-        filteredListings,
-        filters,
-        setFilters,
-        loading,
-        userLat: lat,
-        userLng: lng,
-      }}
-    >
-      {children}
-    </ListingsContext.Provider>
+  const filteredListings = useMemo(
+    () => applyClientFilters(listings, filters),
+    [listings, filters],
   );
+
+  const contextValue = useMemo(
+    () => ({
+      listings,
+      filteredListings,
+      filters,
+      setFilters,
+      loading,
+      userLat: lat,
+      userLng: lng,
+    }),
+    [listings, filteredListings, filters, setFilters, loading, lat, lng],
+  );
+
+  return <ListingsContext.Provider value={contextValue}>{children}</ListingsContext.Provider>;
 };
 
 export default ListingsProvider;
