@@ -11,7 +11,6 @@ import {
   geocodePlace,
   overpassAreaSearch,
 } from '../services/osm.service';
-import type { IOsmPlace } from '../services/osm.service';
 import { isGooglePlacesEnabled } from '../config/env';
 import { searchGooglePlaces, placeResultToOsmFormat } from '../services/places.service';
 import { osmPlaceToListing } from '../services/hybrid.service';
