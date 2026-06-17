@@ -12,6 +12,7 @@ import ClaimVenueButton from '../components/listings/ClaimVenueButton';
 import { useSaved } from '../contexts/SavedContext';
 import { useInterested } from '../contexts/InterestedContext';
 import { useAuth } from '../contexts/AuthContext';
+import { useListings } from '../contexts/ListingsContext';
 
 const fmtDate = (s: string): string =>
   new Date(s).toLocaleDateString('en-ZA', {
@@ -64,18 +65,29 @@ const ListingDetail: React.FC = () => {
   const { isSaved, toggleSave } = useSaved();
   const { isInterested, toggleInterested } = useInterested();
   const { isGuest } = useAuth();
+  const { getListingById } = useListings();
 
   useEffect(() => {
     if (!id) return;
     const load = async (): Promise<void> => {
-      const data = await getListing(id);
+      // Try to get from context first (handles both Supabase and ephemeral OSM/Google listings)
+      let data = getListingById(id);
+
+      // If not in context, try Supabase (for deep links to owner listings)
+      if (!data) {
+        data = await getListing(id);
+      }
+
       setListing(data);
       setLocalInterestedCount(data?.interested_count ?? 0);
       setLoading(false);
     };
     load();
-    incrementViewCount(id ?? '');
-  }, [id]);
+    // Only increment view count for Supabase listings (not ephemeral ones)
+    if (id && !id.startsWith('osm-')) {
+      incrementViewCount(id);
+    }
+  }, [id, getListingById]);
 
   const handleBack = useCallback(() => navigate(-1), [navigate]);
   const handleSave = useCallback(() => {

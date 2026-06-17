@@ -23,6 +23,9 @@ export const getNearbyListings = async (
 };
 
 export const getListing = async (id: string): Promise<IListingWithDistance | null> => {
+  // Skip Supabase query for ephemeral OSM/Google listings (they only exist in context)
+  if (id.startsWith('osm-')) return null;
+
   if (!isSupabaseEnabled() || !supabase) return null;
   const { data, error } = await supabase.from('listings').select('*').eq('id', id).single();
   if (error) {
@@ -73,6 +76,9 @@ export const softDeleteListing = async (id: string): Promise<{ error: string | n
 };
 
 export const incrementViewCount = async (id: string): Promise<void> => {
+  // Skip view count for ephemeral OSM/Google listings (they don't exist in Supabase)
+  if (id.startsWith('osm-')) return;
+
   if (!isSupabaseEnabled() || !supabase) return;
   await supabase.rpc('increment_view_count', { listing_id: id });
 };

@@ -98,6 +98,18 @@ Status markers: `[x]` done · `[-]` in progress · `[ ]` not started
 
 ---
 
+## PWA & API Fixes (2026-06-17) ✅
+
+- [x] Add PWA manifest with Jol branding
+- [x] Create proper SVG app icons (192x192, 512x512)
+- [x] Fix Google Places API 400 errors (simplified types, added distance ranking)
+- [x] Optimize OSM Overpass servers (removed CORS-blocked endpoints)
+- [x] Fix "Listing not found" error for OSM/Google listings
+- [x] Add getListingById to ListingsContext for ephemeral listing retrieval
+- [x] Skip Supabase queries for OSM IDs (performance optimization)
+
+---
+
 ## Up Next
 
 ### API & Data Strategy

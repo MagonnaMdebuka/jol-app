@@ -30,6 +30,7 @@ interface IListingsContext {
   loading: boolean;
   userLat: number | null;
   userLng: number | null;
+  getListingById: (id: string) => IListingWithDistance | null;
 }
 
 const DEFAULT_FILTERS: IListingFilters = { vibe: 'all', radius: 20000, sortBy: 'nearest' };
@@ -127,6 +128,13 @@ const ListingsProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     [listings, filters],
   );
 
+  const getListingById = useCallback(
+    (id: string): IListingWithDistance | null => {
+      return listings.find((l) => l.id === id) ?? null;
+    },
+    [listings],
+  );
+
   const contextValue = useMemo(
     () => ({
       listings,
@@ -136,8 +144,9 @@ const ListingsProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
       loading,
       userLat: lat,
       userLng: lng,
+      getListingById,
     }),
-    [listings, filteredListings, filters, setFilters, loading, lat, lng],
+    [listings, filteredListings, filters, setFilters, loading, lat, lng, getListingById],
   );
 
   return <ListingsContext.Provider value={contextValue}>{children}</ListingsContext.Provider>;
