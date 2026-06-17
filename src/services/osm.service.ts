@@ -69,10 +69,9 @@ const isCacheStale = (entry: ICacheEntry): boolean => Date.now() - entry.timesta
 // ─────────────────────────────────────────────────────────────
 
 const OVERPASS_SERVERS = [
-  'https://overpass.openstreetmap.ru/api/interpreter', // Russian mirror, good CORS
-  'https://overpass.kumi.systems/api/interpreter',
-  'https://z.overpass-api.de/api/interpreter', // Alternative endpoint
-  'https://lz4.overpass-api.de/api/interpreter', // LZ4 compressed endpoint
+  'https://overpass.kumi.systems/api/interpreter', // Usually reliable with good CORS
+  'https://overpass.openstreetmap.ru/api/interpreter', // Russian mirror, good CORS but can be slow
+  // Note: z.overpass-api.de and lz4.overpass-api.de often return 406/CORS errors
 ];
 
 // ─────────────────────────────────────────────────────────────
@@ -280,7 +279,7 @@ const fetchOverpassWithFallback = async (query: string): Promise<Response | null
     const url = new URL(server);
     url.searchParams.set('data', query);
     try {
-      const res = await fetch(url.toString(), { signal: AbortSignal.timeout(8000) });
+      const res = await fetch(url.toString(), { signal: AbortSignal.timeout(12000) });
       if (res.ok) return res;
       console.warn(`[OSM] ${server} returned ${res.status}, trying next...`);
     } catch (e) {

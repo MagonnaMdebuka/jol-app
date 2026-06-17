@@ -22,26 +22,17 @@ const GOOGLE_PLACES_TEXT_URL = 'https://places.googleapis.com/v1/places:searchTe
 const GOOGLE_PLACES_NEARBY_URL = 'https://places.googleapis.com/v1/places:searchNearby';
 
 // Google Places types relevant to Jol (nightlife & food discovery)
+// Using Place Types from https://developers.google.com/maps/documentation/places/web-service/place-types
 const GOOGLE_PLACE_TYPES = [
   'restaurant',
   'bar',
   'night_club',
   'cafe',
-  'pub',
-  'lounge',
-  'fast_food_restaurant',
-  'cocktail_bar',
-  'wine_bar',
-  'steak_house',
-  'seafood_restaurant',
-  'pizza_restaurant',
-  'sushi_restaurant',
-  'fine_dining_restaurant',
-  'brunch_restaurant',
+  'meal_takeaway',
+  'meal_delivery',
+  'bakery',
   'movie_theater',
   'casino',
-  'event_venue',
-  'performing_arts_theater',
 ];
 
 // ============ Foursquare ============
@@ -124,7 +115,7 @@ const transformGooglePlace = (place: IGooglePlace, apiKey: string): IPlaceResult
 };
 
 const GOOGLE_FIELD_MASK =
-  'places.id,places.displayName,places.formattedAddress,places.location,places.primaryType,places.primaryTypeDisplayName,places.photos,places.rating';
+  'places.id,places.displayName,places.formattedAddress,places.location,places.primaryType,places.primaryTypeDisplayName,places.photos,places.rating,places.userRatingCount';
 
 const searchGoogle = async (query: string, lat: number, lng: number): Promise<IPlaceResult[]> => {
   if (!isGooglePlacesEnabled()) return [];
@@ -230,18 +221,20 @@ export const searchGoogleNearby = async (
       },
       body: JSON.stringify({
         includedTypes: GOOGLE_PLACE_TYPES,
+        maxResultCount: Math.min(limit, 20),
+        rankPreference: 'DISTANCE',
         locationRestriction: {
           circle: {
             center: { latitude: lat, longitude: lng },
             radius: radiusMetres,
           },
         },
-        maxResultCount: Math.min(limit, 20),
       }),
     });
 
     if (!response.ok) {
-      console.warn('[Google Places] Nearby search failed:', response.status);
+      const errorText = await response.text();
+      console.warn('[Google Places] Nearby search failed:', response.status, errorText);
       return [];
     }
     const data: IGooglePlacesResponse = await response.json();

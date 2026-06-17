@@ -83,6 +83,21 @@ Status markers: `[x]` done · `[-]` in progress · `[ ]` not started
 
 ---
 
+## Audit Quick Wins (2026-06-15) ✅
+
+- [x] Add Open Graph and Twitter Card meta tags
+- [x] Extract MonoLabel to shared component
+- [x] Add ErrorBoundary component wrapping routes
+- [x] Add ConfirmDialog for delete actions in Dashboard
+- [x] Improve color contrast (nz-muted #b09878 → #c4a880 for WCAG AA)
+- [x] Add aria-labels to icon-only buttons
+- [x] Add autoComplete attributes to auth forms
+- [x] Memoize all context provider values
+- [x] Add loading="lazy" to below-fold images
+- [x] .env.example already existed with placeholders
+
+---
+
 ## Up Next
 
 ### API & Data Strategy
@@ -140,6 +155,82 @@ Status markers: `[x]` done · `[-]` in progress · `[ ]` not started
 
 - [ ] CI/CD pipeline — GitHub Actions for lint, build, deploy
 
+---
+
+## Audit Priority Improvements (2026-06-15)
+
+### Security (Critical)
+
+- [ ] Verify Supabase RLS policies — ensure ownership checks on listings, venues tables
+- [ ] Add input validation with Zod — validate listing/venue payloads before API calls
+- [ ] Strengthen password requirements — minimum 8 chars, mixed case, numbers
+- [ ] Add rate limiting on auth — exponential backoff for failed login attempts
+- [ ] Restrict file uploads — validate file type/size, consider virus scanning
+- [ ] Move sensitive API keys to edge functions — Google/Foursquare keys exposed in bundle
+
+### Code Quality (High)
+
+- [ ] Add test coverage — Vitest for services, Testing Library for components, Playwright for E2E
+- [ ] Extract large components — Search.tsx (494 lines), DiscoveryMap.tsx (390 lines), NewListing.tsx (604 lines)
+- [ ] Create shared distance utility — Haversine formula duplicated in osm.service, places.service, Search.tsx
+- [ ] Split osm.service.ts (566 lines) — separate into osm-api.ts, osm-cache.ts, osm-parser.ts
+
+### UI/UX (Medium)
+
+- [ ] Add skeleton loaders — replace full-page spinners with content-shaped placeholders
+- [ ] Add React.memo to ListingCard — prevent re-renders on parent state changes
+- [ ] Improve BottomSheet gestures — use spring physics or gesture library
+- [ ] Add breadcrumbs to owner pages — improve navigation context
+- [ ] Add list virtualization — use react-virtual for 100+ item lists
+- [ ] Add network error states — distinct from empty states with retry button
+
+### Performance (Medium)
+
+- [ ] Add bundle analyzer — vite-bundle-visualizer to identify large dependencies
+- [ ] Dynamic import Leaflet — only load map library on map pages
+- [ ] Implement service worker — PWA offline support with Workbox
+- [ ] Add request deduplication — SWR or React Query for data fetching
+
+---
+
+## Audit Long-Term Improvements
+
+### Testing Infrastructure
+
+- [ ] Set up Vitest configuration
+- [ ] Add unit tests for all service functions
+- [ ] Add component tests with Testing Library
+- [ ] Add E2E tests for critical flows (auth, listing creation, search)
+- [ ] Set up test coverage reporting
+
+### Accessibility (WCAG 2.1 AA)
+
+- [ ] Professional accessibility audit
+- [ ] Add skip links ("Skip to content")
+- [ ] Ensure full keyboard navigation
+- [ ] Add focus management on route changes
+- [ ] Support prefers-reduced-motion
+
+### Monitoring & Observability
+
+- [ ] Integrate error tracking (Sentry or similar)
+- [ ] Add performance monitoring
+- [ ] Set up analytics infrastructure
+- [ ] Implement funnel analysis for conversion tracking
+
+### Design System
+
+- [ ] Create Storybook for component documentation
+- [ ] Document all design tokens
+- [ ] Add component usage guidelines
+- [ ] Create visual regression tests
+
+### Future Architecture
+
+- [ ] Consider Zustand/TanStack Query for complex state
+- [ ] Prepare for internationalization (i18n)
+- [ ] Plan API layer abstraction with centralized caching
+
 ### Content & Growth
 
 - [ ] Owner onboarding email sequence
@@ -180,6 +271,7 @@ Status markers: `[x]` done · `[-]` in progress · `[ ]` not started
 
 | Date       | Work                                                                                            |
 | ---------- | ----------------------------------------------------------------------------------------------- |
+| 2026-06-15 | Comprehensive app audit (UI/UX, Security, Code Quality, Performance), implemented 10 quick wins |
 | 2026-06-10 | Foursquare API integration, PostGIS migration, OSM seeding script, fallback images, Claim Venue |
 | 2026-06-08 | Discovery improvements — sort toggle, native share, RSVP, basic PWA                             |
 | 2026-06-01 | Overpass caching — 24hr localStorage cache, server fallback, 2km radius                         |
