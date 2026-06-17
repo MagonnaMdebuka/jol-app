@@ -107,6 +107,9 @@ Status markers: `[x]` done · `[-]` in progress · `[ ]` not started
 - [x] Fix "Listing not found" error for OSM/Google listings
 - [x] Add getListingById to ListingsContext for ephemeral listing retrieval
 - [x] Skip Supabase queries for OSM IDs (performance optimization)
+- [x] Add verified badge to FeaturedCard (consistency with other card variants)
+- [x] Unify Search UX — convert OSM places to listings, use RowCard consistently
+- [x] Remove BottomSheet from Search — all results now navigate to detail pages
 
 ---
 

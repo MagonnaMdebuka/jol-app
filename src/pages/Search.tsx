@@ -4,10 +4,7 @@ import { useListings } from '../contexts/ListingsContext';
 import { NEIGHBOURHOODS, NEIGHBOURHOOD_AREAS } from '../constants/categories';
 import { RowCard } from '../components/listings/ListingCard';
 import Chip from '../components/ui/Chip';
-import BottomSheet from '../components/ui/BottomSheet';
 import MonoLabel from '../components/ui/MonoLabel';
-import OsmCard from '../components/search/OsmCard';
-import SelectedPlaceSheet from '../components/search/SelectedPlaceSheet';
 import {
   searchOsmPlaces,
   getSearchIntentTypes,
@@ -17,6 +14,8 @@ import {
 import type { IOsmPlace } from '../services/osm.service';
 import { isGooglePlacesEnabled } from '../config/env';
 import { searchGooglePlaces, placeResultToOsmFormat } from '../services/places.service';
+import { osmPlaceToListing } from '../services/hybrid.service';
+import type { IListingWithDistance } from '../types/listing.types';
 
 const TRENDING_TAGS = [
   'Amapiano',
@@ -126,10 +125,9 @@ const LOAD_MORE_LIMIT = 50;
 const Search: React.FC = () => {
   const { filteredListings: listings, userLat, userLng } = useListings();
   const [query, setQuery] = useState('');
-  const [osmResults, setOsmResults] = useState<IOsmPlace[]>([]);
+  const [osmResults, setOsmResults] = useState<IListingWithDistance[]>([]);
   const [osmLoading, setOsmLoading] = useState(false);
   const [loadMoreLoading, setLoadMoreLoading] = useState(false);
-  const [selectedOsmPlace, setSelectedOsmPlace] = useState<IOsmPlace | null>(null);
   const [areaCoords, setAreaCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [areaRadius, setAreaRadius] = useState(6000);
   const [currentLimit, setCurrentLimit] = useState(INITIAL_LIMIT);
@@ -221,10 +219,9 @@ const Search: React.FC = () => {
               .then((places) => {
                 if (places.length > 0) {
                   const osmFormatted = places.map((p) => placeResultToOsmFormat(p, lat, lng));
+                  const listings = osmFormatted.map(osmPlaceToListing);
                   setOsmResults(
-                    osmFormatted.sort(
-                      (a, b) => (a.distance_metres ?? 0) - (b.distance_metres ?? 0),
-                    ),
+                    listings.sort((a, b) => (a.distance_metres ?? 0) - (b.distance_metres ?? 0)),
                   );
                   setOsmLoading(false);
                   return;
@@ -257,11 +254,12 @@ const Search: React.FC = () => {
                 intentTypes,
                 knownArea.radiusMetres,
               )
-                .then((places) =>
+                .then((places) => {
+                  const listings = places.map(osmPlaceToListing);
                   setOsmResults(
-                    places.sort((a, b) => (a.distance_metres ?? 0) - (b.distance_metres ?? 0)),
-                  ),
-                )
+                    listings.sort((a, b) => (a.distance_metres ?? 0) - (b.distance_metres ?? 0)),
+                  );
+                })
                 .catch(() => setOsmResults([]))
                 .finally(() => setOsmLoading(false));
               return;
@@ -271,7 +269,8 @@ const Search: React.FC = () => {
             searchOsmPlaces(query, lat, lng)
               .then(async (places) => {
                 if (places.length > 0) {
-                  setOsmResults(places);
+                  const listings = places.map(osmPlaceToListing);
+                  setOsmResults(listings);
                   return;
                 }
                 // If no results, try geocoding for area search
@@ -290,8 +289,9 @@ const Search: React.FC = () => {
                     INITIAL_LIMIT,
                     intentTypes,
                   );
+                  const listings = areaPlaces.map(osmPlaceToListing);
                   setOsmResults(
-                    areaPlaces.sort((a, b) => (a.distance_metres ?? 0) - (b.distance_metres ?? 0)),
+                    listings.sort((a, b) => (a.distance_metres ?? 0) - (b.distance_metres ?? 0)),
                   );
                 } else {
                   setOsmResults([]);
@@ -331,7 +331,8 @@ const Search: React.FC = () => {
         intentTypes,
         areaRadius,
       );
-      setOsmResults(places.sort((a, b) => (a.distance_metres ?? 0) - (b.distance_metres ?? 0)));
+      const listings = places.map(osmPlaceToListing);
+      setOsmResults(listings.sort((a, b) => (a.distance_metres ?? 0) - (b.distance_metres ?? 0)));
       setCurrentLimit(newLimit);
     } finally {
       setLoadMoreLoading(false);
@@ -428,16 +429,11 @@ const Search: React.FC = () => {
                 ) : osmResults.length > 0 ? (
                   <>
                     <MonoLabel className="mb-2">
-                      NEARBY PLACES — {osmResults.length} FROM{' '}
-                      {osmResults[0]?.source === 'google' ? 'GOOGLE' : 'OPENSTREETMAP'}
+                      NEARBY PLACES — {osmResults.length} RESULT{osmResults.length !== 1 ? 'S' : ''}
                     </MonoLabel>
                     <div className="flex flex-col gap-2.5">
-                      {osmResults.map((p) => (
-                        <OsmCard
-                          key={`${p.osm_type}-${p.osm_id}`}
-                          place={p}
-                          onClick={setSelectedOsmPlace}
-                        />
+                      {osmResults.map((listing) => (
+                        <RowCard key={listing.id} listing={listing} />
                       ))}
                     </div>
                     {canLoadMore && (
@@ -465,14 +461,6 @@ const Search: React.FC = () => {
           )}
         </div>
       </div>
-
-      <BottomSheet
-        open={selectedOsmPlace !== null}
-        onClose={() => setSelectedOsmPlace(null)}
-        defaultSnap="partial"
-      >
-        {selectedOsmPlace && <SelectedPlaceSheet place={selectedOsmPlace} listings={listings} />}
-      </BottomSheet>
     </div>
   );
 };

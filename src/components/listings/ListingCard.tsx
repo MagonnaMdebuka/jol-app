@@ -73,8 +73,14 @@ export const FeaturedCard: React.FC<IListingCardProps> = ({ listing }) => {
       />
 
       {/* TypeMark top-left */}
-      <div className="absolute top-3 left-3">
+      <div className="absolute top-3 left-3 flex items-center gap-1.5">
         <Badge variant={listing.type} />
+        {isVerified(listing) && (
+          <span className="flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-nz-bg/60 backdrop-blur-sm border border-emerald-500/30">
+            <BadgeCheck size={12} className="text-emerald-400" />
+            <span className="text-[10px] font-semibold text-emerald-400">VERIFIED</span>
+          </span>
+        )}
       </div>
 
       {/* Heart save button top-right */}
