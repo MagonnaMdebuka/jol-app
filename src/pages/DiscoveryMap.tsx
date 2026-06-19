@@ -11,10 +11,9 @@ import Badge from '../components/ui/Badge';
 import Button from '../components/ui/Button';
 import Spinner from '../components/ui/Spinner';
 import { useSaved } from '../contexts/SavedContext';
+import { fmtDistance } from '../utils/geo';
 import type { IListingWithDistance } from '../types/listing.types';
 import { formatOsmCategory, overpassAreaSearch, type IOsmPlace } from '../services/osm.service';
-
-const fmtDistance = (m: number): string => (m < 1000 ? `${m}m` : `${(m / 1000).toFixed(1)} km`);
 
 const EXTERNAL_PREFIX = 'osm-';
 

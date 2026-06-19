@@ -31,7 +31,8 @@ const Dashboard: React.FC = () => {
   const [deleteTarget, setDeleteTarget] = useState<IListing | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  const ownerId = authUser?.id ?? 'owner-1';
+  // AuthGuard ensures authUser exists; fallback to empty string prevents accessing other owners' data
+  const ownerId = authUser?.id ?? '';
 
   useEffect(() => {
     const load = async (): Promise<void> => {

@@ -1,9 +1,10 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Heart, BadgeCheck } from 'lucide-react';
 import type { IListingWithDistance } from '../../types/listing.types';
 import Badge from '../ui/Badge';
 import { useSaved } from '../../contexts/SavedContext';
+import { fmtDistance } from '../../utils/geo';
 
 // Check if listing is owner-verified (not from OSM/Google)
 const isVerified = (listing: IListingWithDistance): boolean =>
@@ -14,8 +15,6 @@ interface IListingCardProps {
   onSave?: () => void;
   saved?: boolean;
 }
-
-const fmtDistance = (m: number): string => (m < 1000 ? `${m}m` : `${(m / 1000).toFixed(1)} km`);
 
 const MonoMeta: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <span
@@ -29,12 +28,21 @@ const MonoMeta: React.FC<{ children: React.ReactNode }> = ({ children }) => (
 // ──────────────────────────────────────────────
 // Featured card — full bleed, 320px tall
 // ──────────────────────────────────────────────
-export const FeaturedCard: React.FC<IListingCardProps> = ({ listing }) => {
+const FeaturedCardInner: React.FC<IListingCardProps> = ({ listing }) => {
   const navigate = useNavigate();
   const { isSaved, toggleSave } = useSaved();
   const saved = isSaved(listing.id);
 
   const handleClick = useCallback(() => navigate(`/listing/${listing.id}`), [navigate, listing.id]);
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        handleClick();
+      }
+    },
+    [handleClick],
+  );
   const handleSave = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation();
@@ -46,7 +54,11 @@ export const FeaturedCard: React.FC<IListingCardProps> = ({ listing }) => {
   return (
     <article
       onClick={handleClick}
-      className="relative h-[320px] rounded-[22px] overflow-hidden cursor-pointer group"
+      onKeyDown={handleKeyDown}
+      tabIndex={0}
+      role="button"
+      aria-label={`View ${listing.title}`}
+      className="relative h-[320px] rounded-[22px] overflow-hidden cursor-pointer group focus:outline-none focus:ring-2 focus:ring-nz-accent/60 focus:ring-offset-2 focus:ring-offset-nz-bg"
       style={{ animation: 'nz-slideup 280ms cubic-bezier(0.2,0.9,0.2,1) both' }}
     >
       {listing.images[0] ? (
@@ -118,15 +130,26 @@ export const FeaturedCard: React.FC<IListingCardProps> = ({ listing }) => {
   );
 };
 
+export const FeaturedCard = memo(FeaturedCardInner);
+
 // ──────────────────────────────────────────────
 // Tile card — 200px wide, horizontal scroll
 // ──────────────────────────────────────────────
-export const TileCard: React.FC<IListingCardProps> = ({ listing }) => {
+const TileCardInner: React.FC<IListingCardProps> = ({ listing }) => {
   const navigate = useNavigate();
   const { isSaved, toggleSave } = useSaved();
   const saved = isSaved(listing.id);
 
   const handleClick = useCallback(() => navigate(`/listing/${listing.id}`), [navigate, listing.id]);
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        handleClick();
+      }
+    },
+    [handleClick],
+  );
   const handleSave = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation();
@@ -138,7 +161,11 @@ export const TileCard: React.FC<IListingCardProps> = ({ listing }) => {
   return (
     <article
       onClick={handleClick}
-      className="w-[200px] shrink-0 bg-nz-surface border border-nz-border rounded-[18px] overflow-hidden cursor-pointer hover:border-nz-muted/40 transition-all duration-200 group"
+      onKeyDown={handleKeyDown}
+      tabIndex={0}
+      role="button"
+      aria-label={`View ${listing.title}`}
+      className="w-[200px] shrink-0 bg-nz-surface border border-nz-border rounded-[18px] overflow-hidden cursor-pointer hover:border-nz-muted/40 transition-all duration-200 group focus:outline-none focus:ring-2 focus:ring-nz-accent/60 focus:ring-offset-2 focus:ring-offset-nz-bg"
     >
       {/* Photo */}
       <div className="relative h-[144px] overflow-hidden">
@@ -196,15 +223,26 @@ export const TileCard: React.FC<IListingCardProps> = ({ listing }) => {
   );
 };
 
+export const TileCard = memo(TileCardInner);
+
 // ──────────────────────────────────────────────
 // Row card — full-width, horizontal layout
 // ──────────────────────────────────────────────
-export const RowCard: React.FC<IListingCardProps> = ({ listing }) => {
+const RowCardInner: React.FC<IListingCardProps> = ({ listing }) => {
   const navigate = useNavigate();
   const { isSaved, toggleSave } = useSaved();
   const saved = isSaved(listing.id);
 
   const handleClick = useCallback(() => navigate(`/listing/${listing.id}`), [navigate, listing.id]);
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        handleClick();
+      }
+    },
+    [handleClick],
+  );
   const handleSave = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation();
@@ -216,7 +254,11 @@ export const RowCard: React.FC<IListingCardProps> = ({ listing }) => {
   return (
     <article
       onClick={handleClick}
-      className="flex items-center gap-3 bg-nz-surface border border-nz-border rounded-[18px] p-3 cursor-pointer hover:border-nz-muted/40 transition-all duration-200"
+      onKeyDown={handleKeyDown}
+      tabIndex={0}
+      role="button"
+      aria-label={`View ${listing.title}`}
+      className="flex items-center gap-3 bg-nz-surface border border-nz-border rounded-[18px] p-3 cursor-pointer hover:border-nz-muted/40 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-nz-accent/60 focus:ring-offset-2 focus:ring-offset-nz-bg"
     >
       {/* Photo */}
       <div className="relative shrink-0 w-[92px] h-[92px] rounded-[12px] overflow-hidden">
@@ -279,7 +321,9 @@ export const RowCard: React.FC<IListingCardProps> = ({ listing }) => {
   );
 };
 
+export const RowCard = memo(RowCardInner);
+
 // Default export — backwards-compatible (renders RowCard)
 const ListingCard: React.FC<IListingCardProps> = (props) => <RowCard {...props} />;
 
-export default ListingCard;
+export default memo(ListingCard);

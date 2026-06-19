@@ -28,7 +28,7 @@ export const getOwnerVenues = async (ownerId: string): Promise<IVenue[]> => {
     .eq('owner_id', ownerId)
     .order('created_at', { ascending: false });
   if (error) {
-    console.error('getOwnerVenues error:', error.message);
+    if (import.meta.env.DEV) console.error('getOwnerVenues error:', error.message);
     return [];
   }
   return (data ?? []) as IVenue[];
@@ -62,7 +62,7 @@ export const getVenueById = async (id: string): Promise<IVenue | null> => {
   }
   const { data, error } = await supabase.from('venues').select('*').eq('id', id).single();
   if (error) {
-    console.error('getVenueById error:', error.message);
+    if (import.meta.env.DEV) console.error('getVenueById error:', error.message);
     return null;
   }
   return data as IVenue;

@@ -18,15 +18,13 @@ import {
 import Badge from '../ui/Badge';
 import { useToast } from '../ui/Toast';
 import { formatOsmCategory, type IOsmPlace } from '../../services/osm.service';
+import { fmtDistance } from '../../utils/geo';
 import type { IListingWithDistance } from '../../types/listing.types';
 
 interface ISelectedPlaceSheetProps {
   place: IOsmPlace;
   listings: IListingWithDistance[];
 }
-
-const fmtDistance = (m: number): string =>
-  m < 1000 ? `${Math.round(m)}m` : `${(m / 1000).toFixed(1)} km`;
 
 const normalize = (value: string | null | undefined): string =>
   (value ?? '').trim().toLowerCase().replace(/\s+/g, ' ');

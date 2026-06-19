@@ -16,7 +16,7 @@ export const getNearbyListings = async (
     listing_type: type,
   });
   if (error) {
-    console.error('getNearbyListings error:', error.message);
+    if (import.meta.env.DEV) console.error('getNearbyListings error:', error.message);
     return [];
   }
   return (data ?? []) as IListingWithDistance[];
@@ -29,7 +29,7 @@ export const getListing = async (id: string): Promise<IListingWithDistance | nul
   if (!isSupabaseEnabled() || !supabase) return null;
   const { data, error } = await supabase.from('listings').select('*').eq('id', id).single();
   if (error) {
-    console.error('getListing error:', error.message);
+    if (import.meta.env.DEV) console.error('getListing error:', error.message);
     return null;
   }
   return data as IListingWithDistance;
@@ -44,7 +44,7 @@ export const getOwnerListings = async (ownerId: string): Promise<IListing[]> => 
     .neq('status', 'deleted')
     .order('created_at', { ascending: false });
   if (error) {
-    console.error('getOwnerListings error:', error.message);
+    if (import.meta.env.DEV) console.error('getOwnerListings error:', error.message);
     return [];
   }
   return (data ?? []) as IListing[];

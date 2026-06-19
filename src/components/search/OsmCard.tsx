@@ -2,15 +2,13 @@ import React from 'react';
 import { MapPin, ChevronRight, Star } from 'lucide-react';
 import Badge from '../ui/Badge';
 import { formatOsmCategory } from '../../services/osm.service';
+import { fmtDistance } from '../../utils/geo';
 import type { IOsmPlace } from '../../services/osm.service';
 
 export interface IOsmCardProps {
   place: IOsmPlace;
   onClick: (place: IOsmPlace) => void;
 }
-
-const fmtDistance = (m: number): string =>
-  m < 1000 ? `${Math.round(m)}m` : `${(m / 1000).toFixed(1)} km`;
 
 const MonoMeta: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <span

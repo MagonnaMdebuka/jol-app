@@ -8,7 +8,7 @@ export const createReport = async (
   description?: string,
 ): Promise<{ error: string | null }> => {
   if (!isSupabaseEnabled() || !supabase) {
-    console.warn('[demo] Report submitted:', { listingId, reason });
+    if (import.meta.env.DEV) console.warn('[demo] Report submitted:', { listingId, reason });
     return { error: null };
   }
   const { error } = await supabase.from('reports').insert({

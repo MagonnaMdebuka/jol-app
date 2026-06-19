@@ -1,4 +1,5 @@
 import { GAUTENG_CENTER } from '../constants/mapConfig';
+import { haversine } from '../utils/geo';
 
 export interface IOsmPlace {
   osm_id: number;
@@ -181,16 +182,6 @@ export const formatOsmCategory = (amenity: string, cuisine: string | null): stri
   return `${base} · ${first.charAt(0).toUpperCase()}${first.slice(1)}`;
 };
 
-const haversine = (lat1: number, lng1: number, lat2: number, lng2: number): number => {
-  const R = 6371000;
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLng = ((lng2 - lng1) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-};
-
 const inferCategoryFromName = (name: string): string | null => {
   const n = name.toLowerCase();
   if (n.includes('club')) return 'nightclub';
@@ -281,9 +272,10 @@ const fetchOverpassWithFallback = async (query: string): Promise<Response | null
     try {
       const res = await fetch(url.toString(), { signal: AbortSignal.timeout(12000) });
       if (res.ok) return res;
-      console.warn(`[OSM] ${server} returned ${res.status}, trying next...`);
+      if (import.meta.env.DEV)
+        console.warn(`[OSM] ${server} returned ${res.status}, trying next...`);
     } catch (e) {
-      console.warn(`[OSM] ${server} failed, trying next...`, e);
+      if (import.meta.env.DEV) console.warn(`[OSM] ${server} failed, trying next...`, e);
     }
   }
   return null;
@@ -423,13 +415,13 @@ const nominatimSearch = async (
       signal: AbortSignal.timeout(10000),
     });
     if (!res.ok) {
-      console.warn(`[OSM] Nominatim returned ${res.status}`);
+      if (import.meta.env.DEV) console.warn(`[OSM] Nominatim returned ${res.status}`);
       return [];
     }
     const data = await res.json();
     return Array.isArray(data) ? data : [];
   } catch (e) {
-    console.warn('[OSM] Nominatim request failed:', e);
+    if (import.meta.env.DEV) console.warn('[OSM] Nominatim request failed:', e);
     return [];
   }
 };

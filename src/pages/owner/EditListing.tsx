@@ -305,7 +305,7 @@ const EditListing: React.FC = () => {
         )}
         <ImageUploader
           bucket="listing-images"
-          ownerId={authUser?.id ?? 'demo-owner'}
+          ownerId={authUser?.id ?? ''}
           onUpload={(urls) => setImages((prev) => [...prev, ...urls])}
         />
       </div>

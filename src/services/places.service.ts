@@ -186,13 +186,13 @@ export const searchGooglePlaces = async (
     });
 
     if (!response.ok) {
-      console.warn('[Google Places] Text search failed:', response.status);
+      if (import.meta.env.DEV) console.warn('[Google Places] Text search failed:', response.status);
       return [];
     }
     const data: IGooglePlacesResponse = await response.json();
     return (data.places ?? []).map((p) => transformGooglePlace(p, apiKey));
   } catch (e) {
-    console.warn('[Google Places] Text search error:', e);
+    if (import.meta.env.DEV) console.warn('[Google Places] Text search error:', e);
     return [];
   }
 };
@@ -233,14 +233,16 @@ export const searchGoogleNearby = async (
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
-      console.warn('[Google Places] Nearby search failed:', response.status, errorText);
+      if (import.meta.env.DEV) {
+        const errorText = await response.text();
+        console.warn('[Google Places] Nearby search failed:', response.status, errorText);
+      }
       return [];
     }
     const data: IGooglePlacesResponse = await response.json();
     return (data.places ?? []).map((p) => transformGooglePlace(p, apiKey));
   } catch (e) {
-    console.warn('[Google Places] Nearby search error:', e);
+    if (import.meta.env.DEV) console.warn('[Google Places] Nearby search error:', e);
     return [];
   }
 };

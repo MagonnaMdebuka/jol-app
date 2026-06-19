@@ -220,17 +220,23 @@ const ListingDetail: React.FC = () => {
           </button>
         </div>
 
-        {/* Dot nav */}
+        {/* Dot nav — 44px touch targets with smaller visual dots */}
         {photos.length > 1 && (
-          <div className="absolute top-4 left-1/2 -translate-x-1/2 flex gap-1.5">
+          <div className="absolute top-2 left-1/2 -translate-x-1/2 flex">
             {photos.map((_, i) => (
               <button
                 key={i}
                 onClick={() => setPhotoIndex(i)}
-                className={`w-1.5 h-1.5 rounded-full transition-all ${
-                  i === photoIndex ? 'bg-white' : 'bg-white/40'
-                }`}
-              />
+                aria-label={`Go to photo ${i + 1}`}
+                aria-current={i === photoIndex ? 'true' : undefined}
+                className="w-11 h-11 flex items-center justify-center"
+              >
+                <span
+                  className={`w-2 h-2 rounded-full transition-all ${
+                    i === photoIndex ? 'bg-white' : 'bg-white/40'
+                  }`}
+                />
+              </button>
             ))}
           </div>
         )}

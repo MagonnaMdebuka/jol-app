@@ -38,7 +38,8 @@ const NewListing: React.FC = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const ownerId = authUser?.id ?? 'demo-owner';
+  // AuthGuard ensures authUser exists; fallback to empty string prevents creating orphaned listings
+  const ownerId = authUser?.id ?? '';
 
   const [venues, setVenues] = useState<IVenue[]>([]);
   const [venueId, setVenueId] = useState('');

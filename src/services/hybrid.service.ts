@@ -97,7 +97,8 @@ export const fetchNearbyPlaces = async (
         return osmFormatted.map(osmPlaceToListing);
       }
     } catch (e) {
-      console.warn('[Hybrid] Google Places failed, falling back to OSM:', e);
+      if (import.meta.env.DEV)
+        console.warn('[Hybrid] Google Places failed, falling back to OSM:', e);
     }
   }
 
@@ -115,7 +116,7 @@ export const fetchNearbyPlaces = async (
     );
     return osmResults.map(osmPlaceToListing);
   } catch (e) {
-    console.warn('[Hybrid] OSM search failed:', e);
+    if (import.meta.env.DEV) console.warn('[Hybrid] OSM search failed:', e);
     return [];
   }
 };

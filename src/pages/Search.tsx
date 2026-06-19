@@ -14,6 +14,7 @@ import {
 import { isGooglePlacesEnabled } from '../config/env';
 import { searchGooglePlaces, placeResultToOsmFormat } from '../services/places.service';
 import { osmPlaceToListing } from '../services/hybrid.service';
+import { haversine } from '../utils/geo';
 import type { IListingWithDistance } from '../types/listing.types';
 
 const TRENDING_TAGS = [
@@ -28,16 +29,6 @@ const TRENDING_TAGS = [
 ];
 
 const normalize = (value: string): string => value.trim().toLowerCase();
-
-const haversine = (lat1: number, lng1: number, lat2: number, lng2: number): number => {
-  const R = 6371000;
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLng = ((lng2 - lng1) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-};
 
 /*
 const OsmPlaceDetail: React.FC<{ place: IOsmPlace }> = ({ place }) => (

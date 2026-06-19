@@ -129,7 +129,8 @@ const VenueSetup: React.FC = () => {
       return;
     }
 
-    const ownerId = authUser?.id ?? 'demo-owner';
+    // AuthGuard ensures authUser exists; fallback to empty string prevents orphaned venues
+    const ownerId = authUser?.id ?? '';
     setLoading(true);
 
     let coverPhotoUrl = '';
