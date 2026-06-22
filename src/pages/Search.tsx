@@ -6,6 +6,7 @@ import { searchListings } from '../services/search.service';
 import { haversine } from '../utils/geo';
 import TrendingSection from '../components/search/TrendingSection';
 import { RowCard } from '../components/listings/ListingCard';
+import { RowCardSkeleton } from '../components/ui/Skeleton';
 import MonoLabel from '../components/ui/MonoLabel';
 import type { IListingWithDistance } from '../types/listing.types';
 
@@ -165,17 +166,11 @@ const Search: React.FC = () => {
           ) : (
             <>
               {loading && (
-                <div className="flex items-center gap-2 py-4 text-nz-muted">
-                  <div className="w-3 h-3 rounded-full border-2 border-nz-muted/30 border-t-nz-muted animate-spin" />
-                  <span
-                    style={{
-                      fontFamily: '"JetBrains Mono", monospace',
-                      fontSize: '9px',
-                      letterSpacing: '0.04em',
-                    }}
-                  >
-                    SEARCHING…
-                  </span>
+                <div className="space-y-3">
+                  <MonoLabel>SEARCHING…</MonoLabel>
+                  <RowCardSkeleton />
+                  <RowCardSkeleton />
+                  <RowCardSkeleton />
                 </div>
               )}
 

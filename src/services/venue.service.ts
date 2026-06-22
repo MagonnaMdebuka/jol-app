@@ -1,5 +1,6 @@
 import { supabase } from '../config/supabase';
 import { isSupabaseEnabled } from '../config/env';
+import { createVenueSchema, updateVenueSchema } from '../schemas/venue.schema';
 import type { IVenue } from '../types/venue.types';
 
 const MOCK_VENUES: IVenue[] = [
@@ -37,6 +38,13 @@ export const getOwnerVenues = async (ownerId: string): Promise<IVenue[]> => {
 export const createVenue = async (
   payload: Omit<IVenue, 'id' | 'verified' | 'created_at'>,
 ): Promise<{ id: string | null; error: string | null }> => {
+  // Validate payload
+  const validation = createVenueSchema.safeParse(payload);
+  if (!validation.success) {
+    const firstError = validation.error.issues[0];
+    return { id: null, error: firstError?.message ?? 'Validation failed' };
+  }
+
   if (!isSupabaseEnabled() || !supabase) {
     return { id: `venue-${Date.now()}`, error: null };
   }
@@ -48,6 +56,13 @@ export const updateVenue = async (
   id: string,
   payload: Partial<IVenue>,
 ): Promise<{ error: string | null }> => {
+  // Validate payload
+  const validation = updateVenueSchema.safeParse(payload);
+  if (!validation.success) {
+    const firstError = validation.error.issues[0];
+    return { error: firstError?.message ?? 'Validation failed' };
+  }
+
   if (!isSupabaseEnabled() || !supabase) return { error: null };
   const { error } = await supabase.from('venues').update(payload).eq('id', id);
   return { error: error?.message ?? null };

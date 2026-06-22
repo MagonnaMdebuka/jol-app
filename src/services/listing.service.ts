@@ -1,5 +1,6 @@
 import { supabase } from '../config/supabase';
 import { isSupabaseEnabled } from '../config/env';
+import { createListingSchema, updateListingSchema } from '../schemas/listing.schema';
 import type { IListing, IListingWithDistance } from '../types/listing.types';
 
 export const getNearbyListings = async (
@@ -53,6 +54,13 @@ export const getOwnerListings = async (ownerId: string): Promise<IListing[]> => 
 export const createListing = async (
   payload: Omit<IListing, 'id' | 'view_count' | 'created_at' | 'updated_at'>,
 ): Promise<{ id: string | null; error: string | null }> => {
+  // Validate payload
+  const validation = createListingSchema.safeParse(payload);
+  if (!validation.success) {
+    const firstError = validation.error.issues[0];
+    return { id: null, error: firstError?.message ?? 'Validation failed' };
+  }
+
   if (!isSupabaseEnabled() || !supabase) {
     return { id: `mock-${Date.now()}`, error: null };
   }
@@ -64,6 +72,15 @@ export const updateListing = async (
   id: string,
   payload: Partial<IListing>,
 ): Promise<{ error: string | null }> => {
+  // Validate payload if type is present (allows partial updates)
+  if (payload.type) {
+    const validation = updateListingSchema.safeParse(payload);
+    if (!validation.success) {
+      const firstError = validation.error.issues[0];
+      return { error: firstError?.message ?? 'Validation failed' };
+    }
+  }
+
   if (!isSupabaseEnabled() || !supabase) return { error: null };
   const { error } = await supabase.from('listings').update(payload).eq('id', id);
   return { error: error?.message ?? null };

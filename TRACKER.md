@@ -120,9 +120,9 @@ Status markers: `[x]` done · `[-]` in progress · `[ ]` not started
 - [x] Foursquare Places API integration — fetch venue data during owner setup
 - [x] Foursquare service (`src/services/places.service.ts`) with search + details
 - [x] Place types (`src/types/place.types.ts`) for API response typing
-- [ ] Cache Foursquare response in Supabase (name, address, photos, rating)
+- [x] Cache Foursquare response in Supabase (name, address, photos, rating) — migration 005
 - [ ] Fallback to Google Places if Foursquare returns no results
-- [ ] Remove API dependency for explorer-side — serve only from DB cache
+- [x] Remove API dependency for explorer-side — serve only from DB cache
 
 ### Database — PostGIS Migration
 
@@ -168,7 +168,7 @@ Status markers: `[x]` done · `[-]` in progress · `[ ]` not started
 
 ### DevOps
 
-- [ ] CI/CD pipeline — GitHub Actions for lint, build, deploy
+- [x] CI/CD pipeline — GitHub Actions for lint, build on push/PR
 
 ---
 
@@ -177,8 +177,8 @@ Status markers: `[x]` done · `[-]` in progress · `[ ]` not started
 ### Security (Critical)
 
 - [ ] Verify Supabase RLS policies — ensure ownership checks on listings, venues tables
-- [ ] Add input validation with Zod — validate listing/venue payloads before API calls
-- [ ] Strengthen password requirements — minimum 8 chars, mixed case, numbers
+- [x] Add input validation with Zod — validate listing/venue payloads before API calls
+- [x] Strengthen password requirements — minimum 8 chars, mixed case, numbers
 - [ ] Add rate limiting on auth — exponential backoff for failed login attempts
 - [ ] Restrict file uploads — validate file type/size, consider virus scanning
 - [ ] Move sensitive API keys to edge functions — Google/Foursquare keys exposed in bundle
@@ -186,13 +186,13 @@ Status markers: `[x]` done · `[-]` in progress · `[ ]` not started
 ### Code Quality (High)
 
 - [ ] Add test coverage — Vitest for services, Testing Library for components, Playwright for E2E
-- [ ] Extract large components — Search.tsx (494 lines), DiscoveryMap.tsx (390 lines), NewListing.tsx (604 lines)
-- [ ] Create shared distance utility — Haversine formula duplicated in osm.service, places.service, Search.tsx
-- [ ] Split osm.service.ts (566 lines) — separate into osm-api.ts, osm-cache.ts, osm-parser.ts
+- [x] Extract large components — Search.tsx simplified, NewListing.tsx refactored with extracted components
+- [x] Create shared distance utility — `src/utils/geo.ts` haversine function
+- [x] Split osm.service.ts — separated into osm.constants.ts, osm.cache.ts, overpass.service.ts, osm.types.ts
 
 ### UI/UX (Medium)
 
-- [ ] Add skeleton loaders — replace full-page spinners with content-shaped placeholders
+- [x] Add skeleton loaders — replace full-page spinners with content-shaped placeholders
 - [ ] Add React.memo to ListingCard — prevent re-renders on parent state changes
 - [ ] Improve BottomSheet gestures — use spring physics or gesture library
 - [ ] Add breadcrumbs to owner pages — improve navigation context
@@ -286,6 +286,7 @@ Status markers: `[x]` done · `[-]` in progress · `[ ]` not started
 
 | Date       | Work                                                                                            |
 | ---------- | ----------------------------------------------------------------------------------------------- |
+| 2026-06-22 | Remove explorer-side API, Zod validation schemas, skeleton loaders, GitHub Actions CI/CD        |
 | 2026-06-15 | Comprehensive app audit (UI/UX, Security, Code Quality, Performance), implemented 10 quick wins |
 | 2026-06-10 | Foursquare API integration, PostGIS migration, OSM seeding script, fallback images, Claim Venue |
 | 2026-06-08 | Discovery improvements — sort toggle, native share, RSVP, basic PWA                             |

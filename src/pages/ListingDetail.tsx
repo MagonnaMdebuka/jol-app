@@ -5,8 +5,8 @@ import { MapContainer, TileLayer, Marker } from 'react-leaflet';
 import { getListing, incrementViewCount } from '../services/listing.service';
 import type { IListingWithDistance } from '../types/listing.types';
 import Badge from '../components/ui/Badge';
-import Spinner from '../components/ui/Spinner';
 import Button from '../components/ui/Button';
+import { ListingDetailSkeleton } from '../components/ui/Skeleton';
 import ReportButton from '../components/listings/ReportButton';
 import ClaimVenueButton from '../components/listings/ClaimVenueButton';
 import { useSaved } from '../contexts/SavedContext';
@@ -141,12 +141,7 @@ const ListingDetail: React.FC = () => {
   }, [listing, isGuest, isInterested, toggleInterested, navigate]);
 
   if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center h-full bg-nz-bg gap-4">
-        <Spinner size="lg" />
-        <p className="text-nz-muted text-sm">Loading listing…</p>
-      </div>
-    );
+    return <ListingDetailSkeleton />;
   }
 
   if (!listing) {

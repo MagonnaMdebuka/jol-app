@@ -92,4 +92,44 @@ export const SkeletonList: React.FC<{
   );
 };
 
+/**
+ * Listing detail page skeleton
+ */
+export const ListingDetailSkeleton: React.FC = () => (
+  <div className="h-full overflow-y-auto bg-nz-bg">
+    <div className="max-w-3xl mx-auto">
+      {/* Hero image */}
+      <Skeleton className="w-full aspect-[16/10] rounded-none" />
+      {/* Content */}
+      <div className="px-6 py-6 space-y-6">
+        {/* Header */}
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <Skeleton className="h-6 w-16 rounded-full" />
+            <Skeleton className="h-4 w-20" />
+          </div>
+          <Skeleton className="h-8 w-3/4" />
+          <Skeleton className="h-5 w-1/2" />
+        </div>
+        {/* Info cards */}
+        <div className="grid grid-cols-2 gap-3">
+          <Skeleton className="h-20 rounded-2xl" />
+          <Skeleton className="h-20 rounded-2xl" />
+        </div>
+        {/* Description */}
+        <div className="space-y-2">
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-4 w-2/3" />
+        </div>
+        {/* Action buttons */}
+        <div className="flex gap-3">
+          <Skeleton className="h-12 flex-1 rounded-2xl" />
+          <Skeleton className="h-12 w-12 rounded-full" />
+        </div>
+      </div>
+    </div>
+  </div>
+);
+
 export default Skeleton;
