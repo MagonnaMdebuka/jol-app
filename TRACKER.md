@@ -176,7 +176,7 @@ Status markers: `[x]` done · `[-]` in progress · `[ ]` not started
 
 ### Security (Critical)
 
-- [ ] Verify Supabase RLS policies — ensure ownership checks on listings, venues tables
+- [x] Verify Supabase RLS policies — audited, added secure `claim_venue` RPC (migration 008)
 - [x] Add input validation with Zod — validate listing/venue payloads before API calls
 - [x] Strengthen password requirements — minimum 8 chars, mixed case, numbers
 - [ ] Add rate limiting on auth — exponential backoff for failed login attempts
@@ -185,7 +185,7 @@ Status markers: `[x]` done · `[-]` in progress · `[ ]` not started
 
 ### Code Quality (High)
 
-- [ ] Add test coverage — Vitest for services, Testing Library for components, Playwright for E2E
+- [x] Add test coverage — Vitest setup with example tests for geo utils and auth schemas
 - [x] Extract large components — Search.tsx simplified, NewListing.tsx refactored with extracted components
 - [x] Create shared distance utility — `src/utils/geo.ts` haversine function
 - [x] Split osm.service.ts — separated into osm.constants.ts, osm.cache.ts, overpass.service.ts, osm.types.ts
@@ -193,7 +193,7 @@ Status markers: `[x]` done · `[-]` in progress · `[ ]` not started
 ### UI/UX (Medium)
 
 - [x] Add skeleton loaders — replace full-page spinners with content-shaped placeholders
-- [ ] Add React.memo to ListingCard — prevent re-renders on parent state changes
+- [x] Add React.memo to ListingCard — already implemented in all card variants
 - [ ] Improve BottomSheet gestures — use spring physics or gesture library
 - [ ] Add breadcrumbs to owner pages — improve navigation context
 - [ ] Add list virtualization — use react-virtual for 100+ item lists

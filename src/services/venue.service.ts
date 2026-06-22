@@ -98,48 +98,25 @@ export const isVenueClaimable = async (venueId: string): Promise<boolean> => {
 
 /**
  * Claim an unclaimed venue for an owner
+ * Uses a SECURITY DEFINER RPC to bypass RLS for seeded venues
  */
 export const claimVenue = async (
   venueId: string,
-  ownerId: string,
+  _ownerId: string, // Unused - RPC uses auth.uid()
 ): Promise<{ success: boolean; error: string | null }> => {
   if (!isSupabaseEnabled() || !supabase) {
     return { success: true, error: null };
   }
 
-  // First verify the venue is claimable
-  const { data: venue, error: fetchError } = await supabase
-    .from('venues')
-    .select('is_claimed, osm_id, owner_id')
-    .eq('id', venueId)
-    .single();
+  const { data, error } = await supabase.rpc('claim_venue', {
+    venue_id: venueId,
+  });
 
-  if (fetchError || !venue) {
-    return { success: false, error: 'Venue not found' };
+  if (error) {
+    return { success: false, error: error.message };
   }
 
-  if (venue.is_claimed) {
-    return { success: false, error: 'This venue has already been claimed' };
-  }
-
-  if (!venue.osm_id) {
-    return { success: false, error: 'This venue is not claimable' };
-  }
-
-  // Claim the venue
-  const { error: updateError } = await supabase
-    .from('venues')
-    .update({
-      is_claimed: true,
-      claimed_by: ownerId,
-      claimed_at: new Date().toISOString(),
-      owner_id: ownerId,
-    })
-    .eq('id', venueId);
-
-  if (updateError) {
-    return { success: false, error: updateError.message };
-  }
-
-  return { success: true, error: null };
+  // RPC returns { success: boolean, error: string | null }
+  const result = data as { success: boolean; error: string | null };
+  return result;
 };
