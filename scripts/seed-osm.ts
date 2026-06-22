@@ -37,6 +37,16 @@ const AMENITY_TO_VENUE_TYPE: Record<string, string> = {
   fast_food: 'Other',
 };
 
+// Map OSM amenity to Jol ListingType
+const AMENITY_TO_LISTING_TYPE: Record<string, 'event' | 'food'> = {
+  nightclub: 'event',
+  bar: 'event',
+  pub: 'event',
+  restaurant: 'food',
+  cafe: 'food',
+  fast_food: 'food',
+};
+
 // Seeded venues have no owner until claimed
 const JOL_ADMIN_ID = null;
 
@@ -71,6 +81,20 @@ interface IVenueInsert {
   description: string | null;
   cover_photo: string | null;
   is_claimed: boolean;
+}
+
+interface IListingInsert {
+  venue_id: string;
+  owner_id: string | null;
+  type: 'event' | 'food';
+  title: string;
+  description: string | null;
+  address: string;
+  location: { lat: number; lng: number };
+  images: string[];
+  status: 'active';
+  cuisine_type: string | null;
+  vibe: string[];
 }
 
 // ============================================================
@@ -133,7 +157,12 @@ const fetchAmenities = async (amenity: string): Promise<IOsmNode[]> => {
 // Transform & Insert
 // ============================================================
 
-const transformToVenue = (node: IOsmNode, amenity: string): IVenueInsert | null => {
+interface ITransformResult {
+  venue: IVenueInsert;
+  listing: Omit<IListingInsert, 'venue_id'>;
+}
+
+const transformToVenueAndListing = (node: IOsmNode, amenity: string): ITransformResult | null => {
   const tags = node.tags ?? {};
 
   // Skip if no name
@@ -141,18 +170,46 @@ const transformToVenue = (node: IOsmNode, amenity: string): IVenueInsert | null 
     return null;
   }
 
-  return {
+  const listingType = AMENITY_TO_LISTING_TYPE[amenity] ?? 'food';
+  const address = buildAddress(tags);
+  const location = { lat: node.lat, lng: node.lon };
+
+  const venue: IVenueInsert = {
     osm_id: `osm-${node.id}`,
     owner_id: JOL_ADMIN_ID,
     name: tags.name,
     type: AMENITY_TO_VENUE_TYPE[amenity] ?? 'Other',
-    address: buildAddress(tags),
-    location: { lat: node.lat, lng: node.lon },
+    address,
+    location,
     phone: tags.phone ?? tags['contact:phone'] ?? null,
     description: tags.description ?? null,
-    cover_photo: null, // Will use fallback images
+    cover_photo: null,
     is_claimed: false,
   };
+
+  const listing: Omit<IListingInsert, 'venue_id'> = {
+    owner_id: JOL_ADMIN_ID,
+    type: listingType,
+    title: tags.name,
+    description: tags.description ?? null,
+    address,
+    location,
+    images: [],
+    status: 'active',
+    cuisine_type: listingType === 'food' ? (tags.cuisine ?? formatCuisine(amenity)) : null,
+    vibe: listingType === 'food' ? ['Chill'] : ['Go out'],
+  };
+
+  return { venue, listing };
+};
+
+const formatCuisine = (amenity: string): string => {
+  const mapping: Record<string, string> = {
+    restaurant: 'Restaurant',
+    cafe: 'Café',
+    fast_food: 'Fast Food',
+  };
+  return mapping[amenity] ?? 'Restaurant';
 };
 
 // ============================================================
@@ -175,47 +232,99 @@ const main = async (): Promise<void> => {
 
   console.log('Starting OSM data seeding for Gauteng...\n');
 
-  let totalInserted = 0;
+  let totalVenuesInserted = 0;
+  let totalListingsInserted = 0;
   let totalSkipped = 0;
 
   for (const amenity of AMENITY_TYPES) {
     const nodes = await fetchAmenities(amenity);
 
-    const venues = nodes
-      .map((node) => transformToVenue(node, amenity))
-      .filter((v): v is IVenueInsert => v !== null);
+    const transformed = nodes
+      .map((node) => transformToVenueAndListing(node, amenity))
+      .filter((t): t is ITransformResult => t !== null);
 
-    if (venues.length === 0) {
+    if (transformed.length === 0) {
       console.log(`  No valid venues for ${amenity}\n`);
       await sleep(REQUEST_DELAY);
       continue;
     }
 
-    // Upsert to avoid duplicates
-    const { data, error } = await supabase
-      .from('venues')
-      .upsert(venues, { onConflict: 'osm_id', ignoreDuplicates: true })
-      .select('id');
+    const venues = transformed.map((t) => t.venue);
 
-    if (error) {
-      console.error(`  Insert error for ${amenity}:`, error.message);
-    } else {
-      const inserted = data?.length ?? 0;
-      totalInserted += inserted;
-      totalSkipped += venues.length - inserted;
-      console.log(
-        `  Inserted ${inserted} venues, skipped ${venues.length - inserted} duplicates\n`,
-      );
+    // Upsert venues to avoid duplicates
+    const { data: venueData, error: venueError } = await supabase
+      .from('venues')
+      .upsert(venues, { onConflict: 'osm_id', ignoreDuplicates: false })
+      .select('id, osm_id');
+
+    if (venueError) {
+      console.error(`  Venue insert error for ${amenity}:`, venueError.message);
+      await sleep(REQUEST_DELAY);
+      continue;
     }
 
+    const insertedVenues = venueData ?? [];
+    totalVenuesInserted += insertedVenues.length;
+    console.log(`  Inserted/updated ${insertedVenues.length} venues`);
+
+    // Build osm_id -> venue_id map
+    const osmToVenueId = new Map<string, string>();
+    for (const v of insertedVenues) {
+      osmToVenueId.set(v.osm_id, v.id);
+    }
+
+    // Create listings for the inserted venues
+    const listings: IListingInsert[] = [];
+    for (const t of transformed) {
+      const venueId = osmToVenueId.get(t.venue.osm_id);
+      if (venueId) {
+        listings.push({ ...t.listing, venue_id: venueId });
+      }
+    }
+
+    if (listings.length > 0) {
+      // Upsert listings - use venue_id + title as a pseudo-unique constraint
+      // First check if listings already exist for these venues
+      const venueIds = listings.map((l) => l.venue_id);
+      const { data: existingListings } = await supabase
+        .from('listings')
+        .select('venue_id')
+        .in('venue_id', venueIds);
+
+      const existingVenueIds = new Set((existingListings ?? []).map((l) => l.venue_id));
+      const newListings = listings.filter((l) => !existingVenueIds.has(l.venue_id));
+
+      if (newListings.length > 0) {
+        const { error: listingError, data: listingData } = await supabase
+          .from('listings')
+          .insert(newListings)
+          .select('id');
+
+        if (listingError) {
+          console.error(`  Listing insert error for ${amenity}:`, listingError.message);
+        } else {
+          const insertedCount = listingData?.length ?? 0;
+          totalListingsInserted += insertedCount;
+          console.log(`  Created ${insertedCount} new listings`);
+        }
+      }
+
+      totalSkipped += listings.length - newListings.length;
+      if (listings.length - newListings.length > 0) {
+        console.log(`  Skipped ${listings.length - newListings.length} existing listings`);
+      }
+    }
+
+    console.log();
     // Respect rate limits
     await sleep(REQUEST_DELAY);
   }
 
   console.log('='.repeat(50));
   console.log(`Seeding complete!`);
-  console.log(`  Total inserted: ${totalInserted}`);
-  console.log(`  Total skipped (duplicates): ${totalSkipped}`);
+  console.log(`  Total venues inserted/updated: ${totalVenuesInserted}`);
+  console.log(`  Total listings created: ${totalListingsInserted}`);
+  console.log(`  Total skipped (existing): ${totalSkipped}`);
   console.log('='.repeat(50));
 };
 
