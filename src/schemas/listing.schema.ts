@@ -6,7 +6,6 @@ import { z } from 'zod';
 import { locationSchema } from './venue.schema';
 
 // Listing types
-const LISTING_TYPES = ['event', 'food'] as const;
 const LISTING_STATUSES = ['active', 'under_review', 'inactive', 'deleted'] as const;
 const DRESS_CODES = ['Casual', 'Smart Casual', 'Formal', 'Any'] as const;
 const PRICE_RANGES = ['R', 'RR', 'RRR', 'RRRR'] as const;
@@ -121,7 +120,7 @@ export type CreateEventListing = z.infer<typeof createEventListingSchema>;
 export type CreateFoodListing = z.infer<typeof createFoodListingSchema>;
 export type CreateListing = z.infer<typeof createListingSchema>;
 export type UpdateListing = z.infer<typeof updateListingSchema>;
-export type ListingType = (typeof LISTING_TYPES)[number];
+export type ListingType = 'event' | 'food';
 export type ListingStatus = (typeof LISTING_STATUSES)[number];
 export type DressCode = (typeof DRESS_CODES)[number];
 export type PriceRange = (typeof PRICE_RANGES)[number];
