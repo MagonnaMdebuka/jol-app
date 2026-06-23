@@ -1,58 +1,32 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { X, Calendar, UtensilsCrossed, Eye } from 'lucide-react';
+import { Eye } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { createListing } from '../../services/listing.service';
 import { getOwnerVenues } from '../../services/venue.service';
 import { isSupabaseEnabled } from '../../config/env';
-import { EVENT_TAGS, CUISINE_TYPES, PRICE_RANGES } from '../../constants/categories';
 import { useToast } from '../../components/ui/Toast';
-import Input from '../../components/ui/Input';
+import MonoLabel from '../../components/ui/MonoLabel';
 import Button from '../../components/ui/Button';
 import ImageUploader from '../../components/listings/ImageUploader';
 import ListingPreviewModal from '../../components/listings/ListingPreviewModal';
+import ListingFormHeader from '../../components/listings/ListingFormHeader';
+import ListingTypeToggle from '../../components/listings/ListingTypeToggle';
+import ListingBasicFields from '../../components/listings/ListingBasicFields';
+import VenueSelector from '../../components/listings/VenueSelector';
+import EventFormSection from '../../components/listings/EventFormSection';
+import FoodFormSection from '../../components/listings/FoodFormSection';
+import { validateRequired, validateFutureDate, validateDateRange } from '../../utils/validation';
 import type { IVenue } from '../../types/venue.types';
 import type { ListingType, DressCode, PriceRange } from '../../types/listing.types';
-
-const GENRE_VIBES = [
-  'Amapiano',
-  'House',
-  'Hip Hop',
-  'Afrobeats',
-  'RnB',
-  'Jazz',
-  'Live Music',
-  'Date night',
-  'Late night',
-  'Sundowner',
-];
-
-const DRESS_CHIP_OPTIONS = ['Casual', 'Smart Casual', 'Formal', 'Any'];
-
-const SELECT_CLASS =
-  'w-full bg-nz-elevated/80 border border-nz-border/60 hover:border-nz-border rounded-xl px-4 py-3 text-nz-text text-sm outline-none transition-all duration-200 focus:ring-2 focus:ring-nz-accent/50 focus:border-nz-accent/40';
-
-const MonoLabel: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <p
-    className="text-nz-muted mb-2"
-    style={{
-      fontFamily: '"JetBrains Mono", monospace',
-      fontSize: '9px',
-      letterSpacing: '0.04em',
-      fontWeight: 500,
-    }}
-  >
-    {children}
-  </p>
-);
 
 const NewListing: React.FC = () => {
   const { authUser } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const ownerId = authUser?.id ?? '';
 
-  const ownerId = authUser?.id ?? 'demo-owner';
-
+  // Core fields
   const [venues, setVenues] = useState<IVenue[]>([]);
   const [venueId, setVenueId] = useState('');
   const [type, setType] = useState<ListingType>('event');
@@ -61,6 +35,8 @@ const NewListing: React.FC = () => {
   const [address, setAddress] = useState('');
   const [images, setImages] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
 
   // Event fields
   const [eventDate, setEventDate] = useState('');
@@ -78,10 +54,30 @@ const NewListing: React.FC = () => {
   const [priceRange, setPriceRange] = useState<PriceRange>('RR');
   const [special, setSpecial] = useState('');
 
-  // Preview modal
-  const [showPreview, setShowPreview] = useState(false);
-
   const selectedVenue = useMemo(() => venues.find((v) => v.id === venueId), [venues, venueId]);
+
+  const markTouched = useCallback((field: string) => {
+    setTouched((prev) => ({ ...prev, [field]: true }));
+  }, []);
+
+  // Validation errors
+  const errors = useMemo(() => {
+    const errs: Record<string, string | undefined> = {};
+    const titleResult = validateRequired(title, 'Title');
+    errs.title = titleResult.valid ? undefined : titleResult.error;
+    const addressResult = validateRequired(address, 'Address');
+    errs.address = addressResult.valid ? undefined : addressResult.error;
+
+    if (type === 'event') {
+      const dateResult = validateFutureDate(eventDate, false);
+      errs.eventDate = dateResult.valid ? undefined : dateResult.error;
+      const rangeResult = validateDateRange(eventDate, eventEndDate);
+      errs.eventEndDate = rangeResult.valid ? undefined : rangeResult.error;
+    }
+    return errs;
+  }, [title, address, type, eventDate, eventEndDate]);
+
+  const isValid = useMemo(() => !errors.title && !errors.address, [errors.title, errors.address]);
 
   const previewData = useMemo(
     () => ({
@@ -137,18 +133,38 @@ const NewListing: React.FC = () => {
     );
   }, []);
 
-  const getVenueLocation = useCallback((): { lat: number; lng: number } => {
-    const venue = venues.find((v) => v.id === venueId);
-    return venue?.location ?? { lat: -26.0, lng: 28.0 };
-  }, [venues, venueId]);
+  const handleTypeChange = useCallback((newType: ListingType) => {
+    setType(newType);
+    if (newType === 'food') {
+      setEventDate('');
+      setEventEndDate('');
+      setEntryFee('');
+      setDressCode('Smart Casual');
+      setArtist('');
+      setAgeRestriction('');
+      setSelectedTags([]);
+      setCapacity('');
+    } else {
+      setCuisineType('');
+      setOpeningHours('');
+      setPriceRange('RR');
+      setSpecial('');
+    }
+  }, []);
 
   const handleSubmit = useCallback(async () => {
-    if (!title.trim() || !address.trim()) {
-      toast('Title and address are required', 'error');
+    // Mark all required fields as touched
+    setTouched({ title: true, address: true, eventDate: true, eventEndDate: true });
+
+    if (!isValid) {
+      toast('Please fix the errors before publishing', 'error');
       return;
     }
+
     setLoading(true);
-    const location = getVenueLocation();
+    const venue = venues.find((v) => v.id === venueId);
+    const location = venue?.location ?? { lat: -26.0, lng: 28.0 };
+
     const { id, error } = await createListing({
       venue_id: venueId || 'venue-1',
       owner_id: ownerId,
@@ -173,9 +189,8 @@ const NewListing: React.FC = () => {
       special: type === 'food' ? special || null : null,
     });
 
-    if (error) {
-      toast(error, 'error');
-    } else {
+    if (error) toast(error, 'error');
+    else {
       toast(
         isSupabaseEnabled() ? 'Listing published!' : `Demo mode: listing created (id: ${id})`,
         'success',
@@ -184,6 +199,7 @@ const NewListing: React.FC = () => {
     }
     setLoading(false);
   }, [
+    isValid,
     title,
     description,
     address,
@@ -191,6 +207,7 @@ const NewListing: React.FC = () => {
     venueId,
     ownerId,
     images,
+    venues,
     eventDate,
     eventEndDate,
     entryFee,
@@ -203,39 +220,19 @@ const NewListing: React.FC = () => {
     openingHours,
     priceRange,
     special,
-    getVenueLocation,
     toast,
     navigate,
   ]);
 
   return (
     <div className="flex flex-col gap-6 pb-10">
-      {/* Header row */}
-      <div className="flex items-center justify-between">
-        <button
-          type="button"
-          onClick={() => navigate(-1)}
-          className="w-9 h-9 rounded-full bg-nz-elevated border border-nz-border flex items-center justify-center text-nz-muted hover:text-nz-text transition-colors"
-          aria-label="Close"
-        >
-          <X size={16} />
-        </button>
-        <p
-          className="text-nz-muted"
-          style={{
-            fontFamily: '"JetBrains Mono", monospace',
-            fontSize: '10px',
-            letterSpacing: '0.04em',
-          }}
-        >
-          NEW LISTING
-        </p>
-        <button type="button" onClick={handleSubmit} className="text-nz-accent text-sm font-bold">
-          Publish
-        </button>
-      </div>
+      <ListingFormHeader
+        label="NEW LISTING"
+        actionLabel="Publish"
+        onClose={() => navigate(-1)}
+        onAction={handleSubmit}
+      />
 
-      {/* Display headline */}
       <h1
         className="text-nz-text leading-[0.92] tracking-[-0.04em]"
         style={{
@@ -247,71 +244,10 @@ const NewListing: React.FC = () => {
         What's the occasion?
       </h1>
 
-      {/* Type toggle — 2 large card buttons */}
-      <div className="grid grid-cols-2 gap-3">
-        {(
-          [
-            {
-              value: 'event' as const,
-              icon: <Calendar size={20} />,
-              title: 'Event',
-              sub: 'Party, DJ night, live music',
-            },
-            {
-              value: 'food' as const,
-              icon: <UtensilsCrossed size={20} />,
-              title: 'Food Spot',
-              sub: 'Restaurant, market, cafe',
-            },
-          ] as const
-        ).map(({ value, icon, title: t, sub }) => (
-          <button
-            key={value}
-            type="button"
-            onClick={() => {
-              setType(value);
-              if (value === 'food') {
-                setEventDate('');
-                setEventEndDate('');
-                setEntryFee('');
-                setDressCode('Smart Casual');
-                setArtist('');
-                setAgeRestriction('');
-                setSelectedTags([]);
-                setCapacity('');
-              } else {
-                setCuisineType('');
-                setOpeningHours('');
-                setPriceRange('RR');
-                setSpecial('');
-              }
-            }}
-            className={`
-              flex flex-col items-start gap-2 p-4 rounded-2xl border text-left
-              transition-all duration-200 active:scale-[0.98]
-              ${
-                type === value
-                  ? 'bg-nz-accent/10 border-nz-accent/50'
-                  : 'bg-nz-surface border-nz-border hover:border-nz-muted/40'
-              }
-            `}
-          >
-            <span className={type === value ? 'text-nz-accent' : 'text-nz-muted'}>{icon}</span>
-            <div>
-              <p
-                className={`font-bold text-sm ${type === value ? 'text-nz-text' : 'text-nz-muted'}`}
-              >
-                {t}
-              </p>
-              <p className="text-nz-subtle text-xs mt-0.5">{sub}</p>
-            </div>
-          </button>
-        ))}
-      </div>
+      <ListingTypeToggle type={type} onChange={handleTypeChange} />
 
-      {/* Photos */}
       <div>
-        <MonoLabel>PHOTOS</MonoLabel>
+        <MonoLabel className="mb-2">PHOTOS</MonoLabel>
         <ImageUploader
           bucket="listing-images"
           ownerId={ownerId}
@@ -319,272 +255,67 @@ const NewListing: React.FC = () => {
         />
       </div>
 
-      {/* Core details */}
-      <div className="flex flex-col gap-4">
-        <MonoLabel>LISTING DETAILS</MonoLabel>
+      <ListingBasicFields
+        type={type}
+        title={title}
+        description={description}
+        address={address}
+        onTitleChange={setTitle}
+        onDescriptionChange={setDescription}
+        onAddressChange={setAddress}
+        onTitleBlur={() => markTouched('title')}
+        onAddressBlur={() => markTouched('address')}
+        titleError={touched.title ? errors.title : undefined}
+        addressError={touched.address ? errors.address : undefined}
+      >
+        <VenueSelector venues={venues} venueId={venueId} onChange={setVenueId} />
+      </ListingBasicFields>
 
-        {/* Venue selector */}
-        {venues.length > 0 ? (
-          <div className="flex flex-col gap-1.5">
-            <label
-              className="text-nz-muted"
-              style={{
-                fontFamily: '"JetBrains Mono", monospace',
-                fontSize: '9px',
-                letterSpacing: '0.04em',
-              }}
-            >
-              VENUE
-            </label>
-            <select
-              value={venueId}
-              onChange={(e) => setVenueId(e.target.value)}
-              className={SELECT_CLASS}
-            >
-              {venues.map((v) => (
-                <option key={v.id} value={v.id}>
-                  {v.name}
-                </option>
-              ))}
-            </select>
-          </div>
-        ) : (
-          <div className="bg-nz-elevated/60 border border-nz-border/40 rounded-xl px-4 py-3">
-            <p className="text-nz-muted text-xs leading-relaxed">
-              No venue registered. Set up your venue first to publish listings.
-            </p>
-          </div>
-        )}
-
-        <Input
-          label="Title *"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder={type === 'event' ? 'e.g. Amapiano Friday Night' : 'e.g. Marble Rosebank'}
-        />
-
-        <div className="flex flex-col gap-1.5">
-          <label
-            className="text-nz-muted"
-            style={{
-              fontFamily: '"JetBrains Mono", monospace',
-              fontSize: '9px',
-              letterSpacing: '0.04em',
-            }}
-          >
-            DESCRIPTION ({description.length}/300)
-          </label>
-          <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value.slice(0, 300))}
-            rows={3}
-            placeholder="Tell people what to expect…"
-            className="w-full bg-nz-elevated/80 border border-nz-border/60 hover:border-nz-border rounded-xl px-4 py-3 text-nz-text text-sm placeholder:text-nz-muted/60 outline-none transition-all duration-200 focus:ring-2 focus:ring-nz-accent/50 focus:border-nz-accent/40 resize-none"
-          />
-        </div>
-
-        <Input
-          label="Address *"
-          value={address}
-          onChange={(e) => setAddress(e.target.value)}
-          placeholder="Street, suburb, city"
-        />
-      </div>
-
-      {/* Event-specific section */}
       {type === 'event' && (
-        <div className="flex flex-col gap-4 bg-nz-surface border border-nz-border/60 rounded-2xl p-4">
-          <MonoLabel>EVENT DETAILS</MonoLabel>
-
-          <div className="grid grid-cols-2 gap-3">
-            <Input
-              label="Date & Time"
-              type="datetime-local"
-              value={eventDate}
-              onChange={(e) => setEventDate(e.target.value)}
-            />
-            <Input
-              label="End Time"
-              type="datetime-local"
-              value={eventEndDate}
-              onChange={(e) => setEventEndDate(e.target.value)}
-            />
-          </div>
-
-          <Input
-            label="Entry Fee"
-            value={entryFee}
-            onChange={(e) => setEntryFee(e.target.value)}
-            placeholder="e.g. R100 at the door / Free"
-          />
-
-          <div>
-            <MonoLabel>DRESS CODE</MonoLabel>
-            <div className="flex flex-wrap gap-2">
-              {DRESS_CHIP_OPTIONS.map((d) => (
-                <button
-                  key={d}
-                  type="button"
-                  onClick={() => setDressCode(d as DressCode)}
-                  className={`
-                    px-3 py-1.5 rounded-full text-xs font-semibold border
-                    transition-all duration-200 active:scale-95
-                    ${
-                      dressCode === d
-                        ? 'bg-nz-text text-nz-bg border-transparent'
-                        : 'border-nz-border text-nz-muted hover:text-nz-text'
-                    }
-                  `}
-                >
-                  {d}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <Input
-            label="Artist / DJ"
-            value={artist}
-            onChange={(e) => setArtist(e.target.value)}
-            placeholder="Optional"
-          />
-          <Input
-            label="Age Restriction"
-            value={ageRestriction}
-            onChange={(e) => setAgeRestriction(e.target.value)}
-            placeholder="e.g. 18+"
-          />
-          <Input
-            label="Capacity"
-            type="number"
-            value={capacity}
-            onChange={(e) => setCapacity(e.target.value)}
-            placeholder="e.g. 200"
-          />
-
-          <div>
-            <MonoLabel>GENRE / VIBE TAGS</MonoLabel>
-            <div className="flex flex-wrap gap-2">
-              {GENRE_VIBES.map((tag) => (
-                <button
-                  key={tag}
-                  type="button"
-                  onClick={() => toggleTag(tag)}
-                  className={`
-                    px-3 py-1.5 rounded-full text-xs font-semibold border
-                    transition-all duration-200 active:scale-95
-                    ${
-                      selectedTags.includes(tag)
-                        ? 'bg-nz-accent text-white border-transparent'
-                        : 'border-nz-border text-nz-muted hover:text-nz-text'
-                    }
-                  `}
-                >
-                  {tag}
-                </button>
-              ))}
-              {EVENT_TAGS.filter((t) => !GENRE_VIBES.includes(t)).map((tag) => (
-                <button
-                  key={tag}
-                  type="button"
-                  onClick={() => toggleTag(tag)}
-                  className={`
-                    px-3 py-1.5 rounded-full text-xs font-semibold border
-                    transition-all duration-200 active:scale-95
-                    ${
-                      selectedTags.includes(tag)
-                        ? 'bg-nz-accent text-white border-transparent'
-                        : 'border-nz-border text-nz-muted hover:text-nz-text'
-                    }
-                  `}
-                >
-                  {tag}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
+        <EventFormSection
+          eventDate={eventDate}
+          eventEndDate={eventEndDate}
+          entryFee={entryFee}
+          dressCode={dressCode}
+          artist={artist}
+          ageRestriction={ageRestriction}
+          capacity={capacity}
+          selectedTags={selectedTags}
+          onEventDateChange={setEventDate}
+          onEventEndDateChange={setEventEndDate}
+          onEntryFeeChange={setEntryFee}
+          onDressCodeChange={setDressCode}
+          onArtistChange={setArtist}
+          onAgeRestrictionChange={setAgeRestriction}
+          onCapacityChange={setCapacity}
+          onToggleTag={toggleTag}
+          eventDateError={touched.eventDate ? errors.eventDate : undefined}
+          endDateError={touched.eventEndDate ? errors.eventEndDate : undefined}
+          onEventDateBlur={() => markTouched('eventDate')}
+          onEndDateBlur={() => markTouched('eventEndDate')}
+        />
       )}
 
-      {/* Food-specific section */}
       {type === 'food' && (
-        <div className="flex flex-col gap-4 bg-nz-surface border border-nz-border/60 rounded-2xl p-4">
-          <MonoLabel>FOOD DETAILS</MonoLabel>
-
-          <div className="flex flex-col gap-1.5">
-            <label
-              className="text-nz-muted"
-              style={{
-                fontFamily: '"JetBrains Mono", monospace',
-                fontSize: '9px',
-                letterSpacing: '0.04em',
-              }}
-            >
-              CUISINE TYPE
-            </label>
-            <select
-              value={cuisineType}
-              onChange={(e) => setCuisineType(e.target.value)}
-              className={SELECT_CLASS}
-            >
-              <option value="">Select cuisine…</option>
-              {CUISINE_TYPES.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <Input
-            label="Opening Hours"
-            value={openingHours}
-            onChange={(e) => setOpeningHours(e.target.value)}
-            placeholder="e.g. Mon–Sun 10:00–22:00"
-          />
-
-          <div className="flex flex-col gap-1.5">
-            <label
-              className="text-nz-muted"
-              style={{
-                fontFamily: '"JetBrains Mono", monospace',
-                fontSize: '9px',
-                letterSpacing: '0.04em',
-              }}
-            >
-              PRICE RANGE
-            </label>
-            <select
-              value={priceRange}
-              onChange={(e) => setPriceRange(e.target.value as PriceRange)}
-              className={SELECT_CLASS}
-            >
-              {PRICE_RANGES.map((p) => (
-                <option key={p.value} value={p.value}>
-                  {p.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <Input
-            label="Special / Deal"
-            value={special}
-            onChange={(e) => setSpecial(e.target.value)}
-            placeholder="e.g. R75 lunch special weekdays"
-          />
-        </div>
+        <FoodFormSection
+          cuisineType={cuisineType}
+          openingHours={openingHours}
+          priceRange={priceRange}
+          special={special}
+          onCuisineTypeChange={setCuisineType}
+          onOpeningHoursChange={setOpeningHours}
+          onPriceRangeChange={setPriceRange}
+          onSpecialChange={setSpecial}
+        />
       )}
 
-      {/* Action buttons */}
       <div className="flex gap-3">
         <button
           type="button"
           onClick={() => setShowPreview(true)}
           className="flex-1 flex items-center justify-center gap-2 py-3.5 bg-nz-elevated border border-nz-border rounded-2xl text-nz-text text-sm font-semibold hover:bg-nz-surface transition-colors"
         >
-          <Eye size={16} />
-          Preview
+          <Eye size={16} /> Preview
         </button>
         <Button onClick={handleSubmit} loading={loading} size="lg" className="flex-1">
           Publish

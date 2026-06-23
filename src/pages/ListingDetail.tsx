@@ -5,12 +5,14 @@ import { MapContainer, TileLayer, Marker } from 'react-leaflet';
 import { getListing, incrementViewCount } from '../services/listing.service';
 import type { IListingWithDistance } from '../types/listing.types';
 import Badge from '../components/ui/Badge';
-import Spinner from '../components/ui/Spinner';
 import Button from '../components/ui/Button';
+import { ListingDetailSkeleton } from '../components/ui/Skeleton';
 import ReportButton from '../components/listings/ReportButton';
+import ClaimVenueButton from '../components/listings/ClaimVenueButton';
 import { useSaved } from '../contexts/SavedContext';
 import { useInterested } from '../contexts/InterestedContext';
 import { useAuth } from '../contexts/AuthContext';
+import { useListings } from '../contexts/ListingsContext';
 
 const fmtDate = (s: string): string =>
   new Date(s).toLocaleDateString('en-ZA', {
@@ -63,18 +65,29 @@ const ListingDetail: React.FC = () => {
   const { isSaved, toggleSave } = useSaved();
   const { isInterested, toggleInterested } = useInterested();
   const { isGuest } = useAuth();
+  const { getListingById } = useListings();
 
   useEffect(() => {
     if (!id) return;
     const load = async (): Promise<void> => {
-      const data = await getListing(id);
+      // Try to get from context first (handles both Supabase and ephemeral OSM/Google listings)
+      let data = getListingById(id);
+
+      // If not in context, try Supabase (for deep links to owner listings)
+      if (!data) {
+        data = await getListing(id);
+      }
+
       setListing(data);
       setLocalInterestedCount(data?.interested_count ?? 0);
       setLoading(false);
     };
     load();
-    incrementViewCount(id ?? '');
-  }, [id]);
+    // Only increment view count for Supabase listings (not ephemeral ones)
+    if (id && !id.startsWith('osm-')) {
+      incrementViewCount(id);
+    }
+  }, [id, getListingById]);
 
   const handleBack = useCallback(() => navigate(-1), [navigate]);
   const handleSave = useCallback(() => {
@@ -128,12 +141,7 @@ const ListingDetail: React.FC = () => {
   }, [listing, isGuest, isInterested, toggleInterested, navigate]);
 
   if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center h-full bg-nz-bg gap-4">
-        <Spinner size="lg" />
-        <p className="text-nz-muted text-sm">Loading listing…</p>
-      </div>
-    );
+    return <ListingDetailSkeleton />;
   }
 
   if (!listing) {
@@ -207,17 +215,23 @@ const ListingDetail: React.FC = () => {
           </button>
         </div>
 
-        {/* Dot nav */}
+        {/* Dot nav — 44px touch targets with smaller visual dots */}
         {photos.length > 1 && (
-          <div className="absolute top-4 left-1/2 -translate-x-1/2 flex gap-1.5">
+          <div className="absolute top-2 left-1/2 -translate-x-1/2 flex">
             {photos.map((_, i) => (
               <button
                 key={i}
                 onClick={() => setPhotoIndex(i)}
-                className={`w-1.5 h-1.5 rounded-full transition-all ${
-                  i === photoIndex ? 'bg-white' : 'bg-white/40'
-                }`}
-              />
+                aria-label={`Go to photo ${i + 1}`}
+                aria-current={i === photoIndex ? 'true' : undefined}
+                className="w-11 h-11 flex items-center justify-center"
+              >
+                <span
+                  className={`w-2 h-2 rounded-full transition-all ${
+                    i === photoIndex ? 'bg-white' : 'bg-white/40'
+                  }`}
+                />
+              </button>
             ))}
           </div>
         )}
@@ -391,6 +405,12 @@ const ListingDetail: React.FC = () => {
             tickets — just find the spot.
           </p>
         </div>
+
+        {/* Claim venue CTA for unclaimed venues */}
+        <ClaimVenueButton
+          venueId={listing.venue_id}
+          venueName={listing.venue_name ?? listing.title}
+        />
 
         <ReportButton listingId={listing.id} />
       </div>

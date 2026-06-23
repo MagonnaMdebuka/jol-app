@@ -4,6 +4,7 @@ import React, {
   useState,
   useCallback,
   useEffect,
+  useMemo,
   type ReactNode,
 } from 'react';
 
@@ -45,11 +46,12 @@ const SavedProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
 
   const isSaved = useCallback((id: string) => savedIds.has(id), [savedIds]);
 
-  return (
-    <SavedContext.Provider value={{ savedIds, toggleSave, isSaved }}>
-      {children}
-    </SavedContext.Provider>
+  const contextValue = useMemo(
+    () => ({ savedIds, toggleSave, isSaved }),
+    [savedIds, toggleSave, isSaved],
   );
+
+  return <SavedContext.Provider value={contextValue}>{children}</SavedContext.Provider>;
 };
 
 export default SavedProvider;

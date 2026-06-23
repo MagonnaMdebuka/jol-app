@@ -10,8 +10,9 @@ export default {
           elevated: '#2e2116',
           border: '#4e3a26',
           text: '#f5ecd9',
-          muted: '#b09878',
-          subtle: '#7a6652',
+          // Improved contrast: #c4a880 provides 4.5:1 ratio against bg for WCAG AA
+          muted: '#c4a880',
+          subtle: '#8a7660',
           accent: '#ff7a3d',
           'accent-soft': 'rgba(255,122,61,0.16)',
           'accent-text': '#ffb88a',

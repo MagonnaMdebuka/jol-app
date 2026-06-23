@@ -4,6 +4,7 @@ import { Image, ChevronRight } from 'lucide-react';
 import { MapContainer, TileLayer, Marker } from 'react-leaflet';
 import { useAuth } from '../../contexts/AuthContext';
 import { createVenue } from '../../services/venue.service';
+import { cachePlace } from '../../services/places.service';
 import { uploadImage, generatePath } from '../../services/storage.service';
 import { VENUE_TYPES, NEIGHBOURHOODS } from '../../constants/categories';
 import { isSupabaseEnabled } from '../../config/env';
@@ -11,7 +12,9 @@ import { useToast } from '../../components/ui/Toast';
 import Input from '../../components/ui/Input';
 import Button from '../../components/ui/Button';
 import Chip from '../../components/ui/Chip';
+import PlaceSearchInput from '../../components/listings/PlaceSearchInput';
 import type { VenueType } from '../../types/venue.types';
+import type { IPlaceResult } from '../../types/place.types';
 
 const STEPS = ['Basics', 'Location', 'Photos'];
 
@@ -60,6 +63,23 @@ const VenueSetup: React.FC = () => {
   const [coverPreview, setCoverPreview] = useState('');
   const [loading, setLoading] = useState(false);
 
+  // Place search state
+  const [selectedPlace, setSelectedPlace] = useState<IPlaceResult | null>(null);
+
+  const handlePlaceSelect = useCallback(
+    (place: IPlaceResult) => {
+      setSelectedPlace(place);
+      setName(place.name);
+      setAddress(place.address);
+      setLat(place.lat.toString());
+      setLng(place.lng.toString());
+      if (place.photo_url && !coverPreview) {
+        setCoverPreview(place.photo_url);
+      }
+    },
+    [coverPreview],
+  );
+
   const handleCoverChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -88,8 +108,14 @@ const VenueSetup: React.FC = () => {
       }
       const parsedLat = parseFloat(lat);
       const parsedLng = parseFloat(lng);
-      if (isNaN(parsedLat) || parsedLat < -35 || parsedLat > -22 ||
-          isNaN(parsedLng) || parsedLng < 16 || parsedLng > 33) {
+      if (
+        isNaN(parsedLat) ||
+        parsedLat < -35 ||
+        parsedLat > -22 ||
+        isNaN(parsedLng) ||
+        parsedLng < 16 ||
+        parsedLng > 33
+      ) {
         toast('Coordinates appear to be outside South Africa', 'error');
         return;
       }
@@ -103,7 +129,8 @@ const VenueSetup: React.FC = () => {
       return;
     }
 
-    const ownerId = authUser?.id ?? 'demo-owner';
+    // AuthGuard ensures authUser exists; fallback to empty string prevents orphaned venues
+    const ownerId = authUser?.id ?? '';
     setLoading(true);
 
     let coverPhotoUrl = '';
@@ -133,6 +160,10 @@ const VenueSetup: React.FC = () => {
     if (error) {
       toast(error, 'error');
     } else {
+      // Cache place data if venue was created from search
+      if (id && selectedPlace) {
+        await cachePlace(id, selectedPlace);
+      }
       toast(
         isSupabaseEnabled()
           ? 'Venue created! You can now add listings.'
@@ -142,7 +173,21 @@ const VenueSetup: React.FC = () => {
       navigate(`/owner/dashboard?venueId=${id}`);
     }
     setLoading(false);
-  }, [name, type, phone, address, neighbourhood, lat, lng, description, coverFile, authUser, toast, navigate]);
+  }, [
+    name,
+    type,
+    phone,
+    address,
+    neighbourhood,
+    lat,
+    lng,
+    description,
+    coverFile,
+    authUser,
+    toast,
+    navigate,
+    selectedPlace,
+  ]);
 
   const mapLat = parseFloat(lat) || -26.2;
   const mapLng = parseFloat(lng) || 28.0;
@@ -152,13 +197,21 @@ const VenueSetup: React.FC = () => {
       <div>
         <p
           className="text-nz-muted mb-1"
-          style={{ fontFamily: '"JetBrains Mono", monospace', fontSize: '9px', letterSpacing: '0.04em' }}
+          style={{
+            fontFamily: '"JetBrains Mono", monospace',
+            fontSize: '9px',
+            letterSpacing: '0.04em',
+          }}
         >
           STEP {step + 1} OF {STEPS.length} · {STEPS[step].toUpperCase()}
         </p>
         <h1
           className="text-nz-text leading-snug tracking-[-0.03em]"
-          style={{ fontFamily: '"Bricolage Grotesque", system-ui', fontWeight: 900, fontSize: '28px' }}
+          style={{
+            fontFamily: '"Bricolage Grotesque", system-ui',
+            fontWeight: 900,
+            fontSize: '28px',
+          }}
         >
           Set Up Your Venue
         </h1>
@@ -169,6 +222,14 @@ const VenueSetup: React.FC = () => {
       {/* Step 1: Basics */}
       {step === 0 && (
         <div className="flex flex-col gap-5">
+          <div>
+            <MonoLabel>FIND YOUR VENUE</MonoLabel>
+            <PlaceSearchInput onSelect={handlePlaceSelect} lat={mapLat} lng={mapLng} />
+            <p className="text-nz-muted/60 text-xs mt-2">
+              Search to auto-fill details, or enter manually below
+            </p>
+          </div>
+
           <Input
             label="Venue Name *"
             value={name}
@@ -187,9 +248,10 @@ const VenueSetup: React.FC = () => {
                   className={`
                     px-3 py-3 rounded-xl text-sm font-semibold text-left
                     border transition-all duration-200 active:scale-[0.98]
-                    ${type === vt.value
-                      ? 'bg-nz-accent/10 border-nz-accent/50 text-nz-accent-text'
-                      : 'bg-nz-surface border-nz-border text-nz-muted hover:text-nz-text'
+                    ${
+                      type === vt.value
+                        ? 'bg-nz-accent/10 border-nz-accent/50 text-nz-accent-text'
+                        : 'bg-nz-surface border-nz-border text-nz-muted hover:text-nz-text'
                     }
                   `}
                 >
@@ -223,11 +285,7 @@ const VenueSetup: React.FC = () => {
             <MonoLabel>NEIGHBOURHOOD</MonoLabel>
             <div className="flex flex-wrap gap-2">
               {NEIGHBOURHOODS.map((n) => (
-                <Chip
-                  key={n}
-                  active={neighbourhood === n}
-                  onClick={() => setNeighbourhood(n)}
-                >
+                <Chip key={n} active={neighbourhood === n} onClick={() => setNeighbourhood(n)}>
                   {n}
                 </Chip>
               ))}
@@ -252,7 +310,10 @@ const VenueSetup: React.FC = () => {
           </div>
 
           {/* Mini map preview */}
-          <div className="rounded-2xl overflow-hidden border border-nz-border" style={{ height: '180px' }}>
+          <div
+            className="rounded-2xl overflow-hidden border border-nz-border"
+            style={{ height: '180px' }}
+          >
             <MapContainer
               center={[mapLat, mapLng]}
               zoom={13}
@@ -290,7 +351,11 @@ const VenueSetup: React.FC = () => {
           <div className="flex flex-col gap-1.5">
             <label
               className="text-nz-muted"
-              style={{ fontFamily: '"JetBrains Mono", monospace', fontSize: '9px', letterSpacing: '0.04em' }}
+              style={{
+                fontFamily: '"JetBrains Mono", monospace',
+                fontSize: '9px',
+                letterSpacing: '0.04em',
+              }}
             >
               DESCRIPTION ({description.length}/500)
             </label>
@@ -308,7 +373,12 @@ const VenueSetup: React.FC = () => {
       {/* Sticky bottom button */}
       <div className="mt-auto">
         {step < 2 ? (
-          <Button onClick={handleNext} size="lg" iconRight={<ChevronRight size={16} />} className="w-full">
+          <Button
+            onClick={handleNext}
+            size="lg"
+            iconRight={<ChevronRight size={16} />}
+            className="w-full"
+          >
             Continue
           </Button>
         ) : (

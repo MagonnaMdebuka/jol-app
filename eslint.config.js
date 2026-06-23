@@ -21,6 +21,9 @@ export default defineConfig([
     rules: {
       'react-hooks/rules-of-hooks': 'error',
       'react-hooks/exhaustive-deps': 'warn',
+      // Disable React Compiler's setState-in-effect rule - valid for early returns
+      'react-hooks/set-state-in-effect': 'off',
+      'react-hooks/preserve-manual-memoization': 'off',
       '@typescript-eslint/no-explicit-any': 'warn',
       '@typescript-eslint/no-unused-vars': [
         'warn',
@@ -28,6 +31,20 @@ export default defineConfig([
       ],
       'no-console': ['warn', { allow: ['error', 'warn'] }],
       'prefer-const': 'warn',
+    },
+  },
+  // Context files export both Provider and hook - disable fast-refresh warning
+  {
+    files: ['src/contexts/**/*.{ts,tsx}', 'src/components/ui/Toast.tsx'],
+    rules: {
+      'react-refresh/only-export-components': 'off',
+    },
+  },
+  // Scripts can use console.log
+  {
+    files: ['scripts/**/*.{ts,tsx}'],
+    rules: {
+      'no-console': 'off',
     },
   },
 ]);

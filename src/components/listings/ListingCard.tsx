@@ -1,18 +1,20 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Heart } from 'lucide-react';
+import { Heart, BadgeCheck } from 'lucide-react';
 import type { IListingWithDistance } from '../../types/listing.types';
 import Badge from '../ui/Badge';
 import { useSaved } from '../../contexts/SavedContext';
+import { fmtDistance } from '../../utils/geo';
+
+// Check if listing is owner-verified (not from OSM/Google)
+const isVerified = (listing: IListingWithDistance): boolean =>
+  !listing.id.startsWith('osm-') && !!listing.owner_id;
 
 interface IListingCardProps {
   listing: IListingWithDistance;
   onSave?: () => void;
   saved?: boolean;
 }
-
-const fmtDistance = (m: number): string =>
-  m < 1000 ? `${m}m` : `${(m / 1000).toFixed(1)} km`;
 
 const MonoMeta: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <span
@@ -26,12 +28,21 @@ const MonoMeta: React.FC<{ children: React.ReactNode }> = ({ children }) => (
 // ──────────────────────────────────────────────
 // Featured card — full bleed, 320px tall
 // ──────────────────────────────────────────────
-export const FeaturedCard: React.FC<IListingCardProps> = ({ listing }) => {
+const FeaturedCardInner: React.FC<IListingCardProps> = ({ listing }) => {
   const navigate = useNavigate();
   const { isSaved, toggleSave } = useSaved();
   const saved = isSaved(listing.id);
 
   const handleClick = useCallback(() => navigate(`/listing/${listing.id}`), [navigate, listing.id]);
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        handleClick();
+      }
+    },
+    [handleClick],
+  );
   const handleSave = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation();
@@ -43,7 +54,11 @@ export const FeaturedCard: React.FC<IListingCardProps> = ({ listing }) => {
   return (
     <article
       onClick={handleClick}
-      className="relative h-[320px] rounded-[22px] overflow-hidden cursor-pointer group"
+      onKeyDown={handleKeyDown}
+      tabIndex={0}
+      role="button"
+      aria-label={`View ${listing.title}`}
+      className="relative h-[320px] rounded-[22px] overflow-hidden cursor-pointer group focus:outline-none focus:ring-2 focus:ring-nz-accent/60 focus:ring-offset-2 focus:ring-offset-nz-bg"
       style={{ animation: 'nz-slideup 280ms cubic-bezier(0.2,0.9,0.2,1) both' }}
     >
       {listing.images[0] ? (
@@ -59,20 +74,25 @@ export const FeaturedCard: React.FC<IListingCardProps> = ({ listing }) => {
       )}
 
       {/* Warm colour overlay */}
-      <div
-        className="absolute inset-0"
-        style={{ background: 'rgba(22,17,12,0.08)' }}
-      />
+      <div className="absolute inset-0" style={{ background: 'rgba(22,17,12,0.08)' }} />
 
       {/* Bottom gradient */}
       <div
         className="absolute inset-0"
-        style={{ background: 'linear-gradient(180deg, rgba(22,17,12,0) 20%, rgba(16,10,5,0.93) 100%)' }}
+        style={{
+          background: 'linear-gradient(180deg, rgba(22,17,12,0) 20%, rgba(16,10,5,0.93) 100%)',
+        }}
       />
 
       {/* TypeMark top-left */}
-      <div className="absolute top-3 left-3">
+      <div className="absolute top-3 left-3 flex items-center gap-1.5">
         <Badge variant={listing.type} />
+        {isVerified(listing) && (
+          <span className="flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-nz-bg/60 backdrop-blur-sm border border-emerald-500/30">
+            <BadgeCheck size={12} className="text-emerald-400" />
+            <span className="text-[10px] font-semibold text-emerald-400">VERIFIED</span>
+          </span>
+        )}
       </div>
 
       {/* Heart save button top-right */}
@@ -81,10 +101,7 @@ export const FeaturedCard: React.FC<IListingCardProps> = ({ listing }) => {
         className="absolute top-3 right-3 w-9 h-9 rounded-full bg-nz-bg/60 backdrop-blur-sm border border-nz-border/40 flex items-center justify-center transition-all duration-200 hover:bg-nz-bg/80"
         aria-label={saved ? 'Remove from saved' : 'Save'}
       >
-        <Heart
-          size={16}
-          className={saved ? 'text-nz-accent fill-nz-accent' : 'text-white'}
-        />
+        <Heart size={16} className={saved ? 'text-nz-accent fill-nz-accent' : 'text-white'} />
       </button>
 
       {/* Bottom content */}
@@ -97,7 +114,11 @@ export const FeaturedCard: React.FC<IListingCardProps> = ({ listing }) => {
         </div>
         <h3
           className="text-white leading-[0.92] tracking-[-0.04em] mb-1"
-          style={{ fontFamily: '"Bricolage Grotesque", system-ui', fontWeight: 900, fontSize: '36px' }}
+          style={{
+            fontFamily: '"Bricolage Grotesque", system-ui',
+            fontWeight: 900,
+            fontSize: '36px',
+          }}
         >
           {listing.title}
         </h3>
@@ -109,15 +130,26 @@ export const FeaturedCard: React.FC<IListingCardProps> = ({ listing }) => {
   );
 };
 
+export const FeaturedCard = memo(FeaturedCardInner);
+
 // ──────────────────────────────────────────────
 // Tile card — 200px wide, horizontal scroll
 // ──────────────────────────────────────────────
-export const TileCard: React.FC<IListingCardProps> = ({ listing }) => {
+const TileCardInner: React.FC<IListingCardProps> = ({ listing }) => {
   const navigate = useNavigate();
   const { isSaved, toggleSave } = useSaved();
   const saved = isSaved(listing.id);
 
   const handleClick = useCallback(() => navigate(`/listing/${listing.id}`), [navigate, listing.id]);
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        handleClick();
+      }
+    },
+    [handleClick],
+  );
   const handleSave = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation();
@@ -129,7 +161,11 @@ export const TileCard: React.FC<IListingCardProps> = ({ listing }) => {
   return (
     <article
       onClick={handleClick}
-      className="w-[200px] shrink-0 bg-nz-surface border border-nz-border rounded-[18px] overflow-hidden cursor-pointer hover:border-nz-muted/40 transition-all duration-200 group"
+      onKeyDown={handleKeyDown}
+      tabIndex={0}
+      role="button"
+      aria-label={`View ${listing.title}`}
+      className="w-[200px] shrink-0 bg-nz-surface border border-nz-border rounded-[18px] overflow-hidden cursor-pointer hover:border-nz-muted/40 transition-all duration-200 group focus:outline-none focus:ring-2 focus:ring-nz-accent/60 focus:ring-offset-2 focus:ring-offset-nz-bg"
     >
       {/* Photo */}
       <div className="relative h-[144px] overflow-hidden">
@@ -158,19 +194,28 @@ export const TileCard: React.FC<IListingCardProps> = ({ listing }) => {
 
       {/* Body */}
       <div className="px-3 py-2.5">
-        <p
-          className="text-nz-text leading-snug line-clamp-2 mb-0.5"
-          style={{ fontFamily: '"Bricolage Grotesque", system-ui', fontWeight: 700, fontSize: '15px' }}
-        >
-          {listing.title}
-        </p>
+        <div className="flex items-center gap-1 mb-0.5">
+          <p
+            className="text-nz-text leading-snug line-clamp-2"
+            style={{
+              fontFamily: '"Bricolage Grotesque", system-ui',
+              fontWeight: 700,
+              fontSize: '15px',
+            }}
+          >
+            {listing.title}
+          </p>
+          {isVerified(listing) && <BadgeCheck size={12} className="text-emerald-400 shrink-0" />}
+        </div>
         {listing.venue_name && (
           <p className="text-nz-muted text-[11px] truncate mb-1">{listing.venue_name}</p>
         )}
+        {listing.cuisine_type && !listing.venue_name && (
+          <p className="text-nz-muted text-[11px] truncate mb-1">{listing.cuisine_type}</p>
+        )}
         <div className="flex items-center gap-1.5">
-          {listing.when_chip && <MonoMeta>{listing.when_chip}</MonoMeta>}
           {listing.distance_metres !== undefined && (
-            <MonoMeta>· {fmtDistance(listing.distance_metres)}</MonoMeta>
+            <MonoMeta>{fmtDistance(listing.distance_metres)}</MonoMeta>
           )}
         </div>
       </div>
@@ -178,15 +223,26 @@ export const TileCard: React.FC<IListingCardProps> = ({ listing }) => {
   );
 };
 
+export const TileCard = memo(TileCardInner);
+
 // ──────────────────────────────────────────────
 // Row card — full-width, horizontal layout
 // ──────────────────────────────────────────────
-export const RowCard: React.FC<IListingCardProps> = ({ listing }) => {
+const RowCardInner: React.FC<IListingCardProps> = ({ listing }) => {
   const navigate = useNavigate();
   const { isSaved, toggleSave } = useSaved();
   const saved = isSaved(listing.id);
 
   const handleClick = useCallback(() => navigate(`/listing/${listing.id}`), [navigate, listing.id]);
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        handleClick();
+      }
+    },
+    [handleClick],
+  );
   const handleSave = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation();
@@ -198,7 +254,11 @@ export const RowCard: React.FC<IListingCardProps> = ({ listing }) => {
   return (
     <article
       onClick={handleClick}
-      className="flex items-center gap-3 bg-nz-surface border border-nz-border rounded-[18px] p-3 cursor-pointer hover:border-nz-muted/40 transition-all duration-200"
+      onKeyDown={handleKeyDown}
+      tabIndex={0}
+      role="button"
+      aria-label={`View ${listing.title}`}
+      className="flex items-center gap-3 bg-nz-surface border border-nz-border rounded-[18px] p-3 cursor-pointer hover:border-nz-muted/40 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-nz-accent/60 focus:ring-offset-2 focus:ring-offset-nz-bg"
     >
       {/* Photo */}
       <div className="relative shrink-0 w-[92px] h-[92px] rounded-[12px] overflow-hidden">
@@ -219,18 +279,30 @@ export const RowCard: React.FC<IListingCardProps> = ({ listing }) => {
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5 mb-1">
           <Badge variant={listing.type} />
+          {isVerified(listing) && (
+            <span className="flex items-center gap-0.5 text-[10px] text-emerald-400">
+              <BadgeCheck size={12} />
+            </span>
+          )}
           {listing.distance_metres !== undefined && (
             <MonoMeta>{fmtDistance(listing.distance_metres)}</MonoMeta>
           )}
         </div>
         <p
           className="text-nz-text leading-snug line-clamp-2 mb-0.5"
-          style={{ fontFamily: '"Bricolage Grotesque", system-ui', fontWeight: 700, fontSize: '16px' }}
+          style={{
+            fontFamily: '"Bricolage Grotesque", system-ui',
+            fontWeight: 700,
+            fontSize: '16px',
+          }}
         >
           {listing.title}
         </p>
         {listing.venue_name && (
           <p className="text-nz-muted text-[11px] truncate">{listing.venue_name}</p>
+        )}
+        {listing.cuisine_type && !listing.venue_name && (
+          <p className="text-nz-muted text-[11px] truncate">{listing.cuisine_type}</p>
         )}
         {listing.when_chip && (
           <p className="text-nz-accent text-[11px] font-semibold mt-0.5">{listing.when_chip}</p>
@@ -249,7 +321,9 @@ export const RowCard: React.FC<IListingCardProps> = ({ listing }) => {
   );
 };
 
+export const RowCard = memo(RowCardInner);
+
 // Default export — backwards-compatible (renders RowCard)
 const ListingCard: React.FC<IListingCardProps> = (props) => <RowCard {...props} />;
 
-export default ListingCard;
+export default memo(ListingCard);

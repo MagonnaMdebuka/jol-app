@@ -4,6 +4,7 @@ import React, {
   useEffect,
   useState,
   useCallback,
+  useMemo,
   type ReactNode,
 } from 'react';
 import { getNearbyListings } from '../services/listing.service';
@@ -28,6 +29,7 @@ interface IListingsContext {
   loading: boolean;
   userLat: number | null;
   userLng: number | null;
+  getListingById: (id: string) => IListingWithDistance | null;
 }
 
 const DEFAULT_FILTERS: IListingFilters = { vibe: 'all', radius: 20000, sortBy: 'nearest' };
@@ -105,30 +107,42 @@ const ListingsProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
       setLoading(true);
       const centerLat = lat ?? GAUTENG_CENTER.lat;
       const centerLng = lng ?? GAUTENG_CENTER.lng;
-      const data = await getNearbyListings(centerLat, centerLng, filters.radius);
-      setListings(data);
+
+      // Fetch listings from Supabase (includes seeded OSM venues)
+      const listings = await getNearbyListings(centerLat, centerLng, filters.radius);
+      setListings(listings);
       setLoading(false);
     };
     fetchListings();
   }, [lat, lng, filters.radius]);
 
-  const filteredListings = applyClientFilters(listings, filters);
-
-  return (
-    <ListingsContext.Provider
-      value={{
-        listings,
-        filteredListings,
-        filters,
-        setFilters,
-        loading,
-        userLat: lat,
-        userLng: lng,
-      }}
-    >
-      {children}
-    </ListingsContext.Provider>
+  const filteredListings = useMemo(
+    () => applyClientFilters(listings, filters),
+    [listings, filters],
   );
+
+  const getListingById = useCallback(
+    (id: string): IListingWithDistance | null => {
+      return listings.find((l) => l.id === id) ?? null;
+    },
+    [listings],
+  );
+
+  const contextValue = useMemo(
+    () => ({
+      listings,
+      filteredListings,
+      filters,
+      setFilters,
+      loading,
+      userLat: lat,
+      userLng: lng,
+      getListingById,
+    }),
+    [listings, filteredListings, filters, setFilters, loading, lat, lng, getListingById],
+  );
+
+  return <ListingsContext.Provider value={contextValue}>{children}</ListingsContext.Provider>;
 };
 
 export default ListingsProvider;

@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect, type ReactNode } from 'react';
+import React, { useRef, useState, type ReactNode } from 'react';
 
 type SnapState = 'collapsed' | 'partial' | 'full';
 
@@ -11,25 +11,24 @@ interface IBottomSheetProps {
 
 const SNAP_HEIGHTS: Record<SnapState, string> = {
   collapsed: '20px',
-  partial: '44vh',
+  partial: 'min(78vh, 720px)',
   full: '92vh',
 };
 
-const BottomSheet: React.FC<IBottomSheetProps> = ({
-  open,
+interface IBottomSheetPanelProps {
+  onClose: () => void;
+  children: ReactNode;
+  defaultSnap: SnapState;
+}
+
+const BottomSheetPanel: React.FC<IBottomSheetPanelProps> = ({
   onClose,
   children,
-  defaultSnap = 'partial',
+  defaultSnap,
 }) => {
   const [snap, setSnap] = useState<SnapState>(defaultSnap);
   const startY = useRef(0);
   const startSnap = useRef<SnapState>(defaultSnap);
-
-  useEffect(() => {
-    if (open) setSnap(defaultSnap);
-  }, [open, defaultSnap]);
-
-  if (!open) return null;
 
   const onDragStart = (e: React.TouchEvent | React.MouseEvent): void => {
     startY.current = 'touches' in e ? e.touches[0].clientY : (e as React.MouseEvent).clientY;
@@ -62,7 +61,7 @@ const BottomSheet: React.FC<IBottomSheetProps> = ({
 
       <div
         className={`
-          absolute bottom-0 left-0 right-0 pointer-events-auto
+          absolute bottom-0 left-1/2 w-full max-w-[640px] -translate-x-1/2 pointer-events-auto
           backdrop-blur-2xl
           border-t border-nz-border/40
           rounded-t-[2rem]
@@ -83,11 +82,26 @@ const BottomSheet: React.FC<IBottomSheetProps> = ({
           <div className="w-12 h-1.5 rounded-full bg-white/15" />
         </div>
 
-        <div className="overflow-y-auto h-full pb-6 px-5">
+        <div className="h-[calc(100%-38px)] overflow-y-auto px-5 pb-6 safe-area-bottom">
           {children}
         </div>
       </div>
     </div>
+  );
+};
+
+const BottomSheet: React.FC<IBottomSheetProps> = ({
+  open,
+  onClose,
+  children,
+  defaultSnap = 'partial',
+}) => {
+  if (!open) return null;
+
+  return (
+    <BottomSheetPanel onClose={onClose} defaultSnap={defaultSnap}>
+      {children}
+    </BottomSheetPanel>
   );
 };
 

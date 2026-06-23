@@ -1,258 +1,127 @@
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
-import { Search as SearchIcon, X, MapPin, ExternalLink } from 'lucide-react';
+import { Search as SearchIcon, X } from 'lucide-react';
 import { useListings } from '../contexts/ListingsContext';
-import { NEIGHBOURHOODS } from '../constants/categories';
+import { NEIGHBOURHOOD_AREAS } from '../constants/categories';
+import { searchListings } from '../services/search.service';
+import { haversine } from '../utils/geo';
+import TrendingSection from '../components/search/TrendingSection';
 import { RowCard } from '../components/listings/ListingCard';
-import Chip from '../components/ui/Chip';
-import BottomSheet from '../components/ui/BottomSheet';
-import Badge from '../components/ui/Badge';
-import OsmCard from '../components/search/OsmCard';
-import {
-  searchOsmPlaces,
-  isEventQuery,
-  formatOsmCategory,
-  geocodePlace,
-  overpassAreaSearch,
-} from '../services/osm.service';
-import type { IOsmPlace } from '../services/osm.service';
+import { RowCardSkeleton } from '../components/ui/Skeleton';
+import MonoLabel from '../components/ui/MonoLabel';
+import type { IListingWithDistance } from '../types/listing.types';
 
-const TRENDING_TAGS = [
-  'Amapiano',
-  'Date night',
-  'Soweto',
-  'Rooftop',
-  'Live jazz',
-  'Sundowner',
-  'Braai',
-  'Free entry',
-];
-
-const MonoLabel: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <p
-    className="text-nz-muted mb-2"
-    style={{
-      fontFamily: '"JetBrains Mono", monospace',
-      fontSize: '9px',
-      letterSpacing: '0.04em',
-      fontWeight: 500,
-    }}
-  >
-    {children}
-  </p>
-);
-
-const fmtDistance = (m: number): string =>
-  m < 1000 ? `${Math.round(m)}m` : `${(m / 1000).toFixed(1)} km`;
-
-const buildRegisterUrl = (place: IOsmPlace): string => {
-  const params = new URLSearchParams({ name: place.name, address: place.address });
-  return `/owner/register?${params.toString()}`;
-};
-
-const OsmPlaceDetail: React.FC<{ place: IOsmPlace }> = ({ place }) => (
-  <div className="pt-2">
-    <div className="flex items-start gap-3 mb-4">
-      <MapPin size={22} className="text-nz-muted shrink-0 mt-1" />
-      <div>
-        <h2
-          className="text-nz-text leading-tight"
-          style={{
-            fontFamily: '"Bricolage Grotesque", system-ui',
-            fontWeight: 900,
-            fontSize: '22px',
-          }}
-        >
-          {place.name}
-        </h2>
-        <p
-          className="text-nz-muted mt-0.5"
-          style={{
-            fontFamily: '"JetBrains Mono", monospace',
-            fontSize: '10px',
-            letterSpacing: '0.04em',
-          }}
-        >
-          {formatOsmCategory(place.amenity, place.cuisine)}
-        </p>
-      </div>
-    </div>
-
-    <p className="text-nz-muted text-sm mb-1">{place.address}</p>
-    {place.suburb && <p className="text-nz-muted text-sm mb-1">{place.suburb}</p>}
-    {place.distance_metres !== null && (
-      <p className="text-nz-muted text-sm mb-3">{fmtDistance(place.distance_metres)} away</p>
-    )}
-
-    <Badge variant="neutral">Not on Jol</Badge>
-
-    <div className="border-t border-nz-border my-4" />
-
-    <a
-      href={buildRegisterUrl(place)}
-      className="flex items-center justify-between gap-3 bg-nz-elevated border border-nz-accent/30 rounded-2xl p-4 hover:border-nz-accent/60 transition-colors"
-    >
-      <div>
-        <p className="text-nz-accent font-semibold text-sm">Add this venue to Jol</p>
-        <p className="text-nz-muted text-xs mt-0.5">List events and reach more people</p>
-      </div>
-      <ExternalLink size={18} className="shrink-0 text-nz-accent" />
-    </a>
-
-    <p
-      className="text-nz-muted/40 text-center mt-4"
-      style={{
-        fontFamily: '"JetBrains Mono", monospace',
-        fontSize: '9px',
-        letterSpacing: '0.04em',
-      }}
-    >
-      DATA © OPENSTREETMAP CONTRIBUTORS
-    </p>
-  </div>
-);
-
-const OsmLoadingState: React.FC = () => (
-  <div className="flex items-center gap-2 py-4 text-nz-muted">
-    <div className="w-3 h-3 rounded-full border-2 border-nz-muted/30 border-t-nz-muted animate-spin" />
-    <span
-      style={{
-        fontFamily: '"JetBrains Mono", monospace',
-        fontSize: '9px',
-        letterSpacing: '0.04em',
-      }}
-    >
-      SEARCHING NEARBY PLACES…
-    </span>
-  </div>
-);
-
-const INITIAL_LIMIT = 20;
-const LOAD_MORE_LIMIT = 50;
+const normalize = (value: string): string => value.trim().toLowerCase();
 
 const Search: React.FC = () => {
   const { filteredListings: listings, userLat, userLng } = useListings();
   const [query, setQuery] = useState('');
-  const [osmResults, setOsmResults] = useState<IOsmPlace[]>([]);
-  const [osmLoading, setOsmLoading] = useState(false);
-  const [loadMoreLoading, setLoadMoreLoading] = useState(false);
-  const [selectedOsmPlace, setSelectedOsmPlace] = useState<IOsmPlace | null>(null);
-  const [areaCoords, setAreaCoords] = useState<{ lat: number; lng: number } | null>(null);
-  const [currentLimit, setCurrentLimit] = useState(INITIAL_LIMIT);
+  const [dbResults, setDbResults] = useState<IListingWithDistance[]>([]);
+  const [loading, setLoading] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const locationRef = useRef<{ lat: number | null; lng: number | null }>({
     lat: userLat,
     lng: userLng,
   });
 
-  // Keep ref in sync without triggering the search effect
   useEffect(() => {
     locationRef.current = { lat: userLat, lng: userLng };
   }, [userLat, userLng]);
 
+  const knownArea = useMemo(() => {
+    const q = normalize(query);
+    if (!q) return null;
+    return NEIGHBOURHOOD_AREAS.find((area) => normalize(area.name) === q) ?? null;
+  }, [query]);
+
   const handleClear = useCallback(() => {
     setQuery('');
-    setAreaCoords(null);
-    setCurrentLimit(INITIAL_LIMIT);
+    setDbResults([]);
   }, []);
+
   const handleTagPress = useCallback((tag: string) => setQuery(tag), []);
 
-  const jolResults = useMemo(() => {
+  // Local filter for in-memory listings (instant results)
+  const localResults = useMemo(() => {
     if (!query.trim()) return [];
     const q = query.toLowerCase();
+
+    if (knownArea) {
+      return listings
+        .map((l) => ({
+          listing: l,
+          distance: haversine(knownArea.lat, knownArea.lng, l.location.lat, l.location.lng),
+        }))
+        .filter(({ distance }) => distance <= knownArea.radiusMetres)
+        .sort((a, b) => a.distance - b.distance)
+        .map(({ listing }) => listing);
+    }
+
     return listings.filter(
       (l) =>
         l.title.toLowerCase().includes(q) ||
         l.venue_name?.toLowerCase().includes(q) ||
         l.address.toLowerCase().includes(q) ||
+        l.description?.toLowerCase().includes(q) ||
+        l.cuisine_type?.toLowerCase().includes(q) ||
+        l.type.toLowerCase().includes(q) ||
         l.tags?.some((t) => t.toLowerCase().includes(q)) ||
         l.vibe?.some((v) => v.toLowerCase().includes(q)),
     );
-  }, [listings, query]);
+  }, [knownArea, listings, query]);
 
+  // Debounced database search
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    const skip = !query.trim() || isEventQuery(query);
-    debounceRef.current = setTimeout(
-      () => {
-        if (skip) {
-          setOsmResults([]);
-          setOsmLoading(false);
-          setAreaCoords(null);
-          setCurrentLimit(INITIAL_LIMIT);
-        } else {
-          setOsmLoading(true);
-          setAreaCoords(null);
-          setCurrentLimit(INITIAL_LIMIT);
-          const { lat, lng } = locationRef.current;
 
-          // First try normal search
-          searchOsmPlaces(query, lat, lng)
-            .then(async (places) => {
-              if (places.length > 0) {
-                setOsmResults(places);
-                return;
-              }
-              // If no results, try geocoding for area search
-              const coord = await geocodePlace(query);
-              if (coord) {
-                setAreaCoords(coord);
-                const hasLoc = lat !== null && lng !== null;
-                const refLat = lat ?? coord.lat;
-                const refLng = lng ?? coord.lng;
-                const areaPlaces = await overpassAreaSearch(
-                  coord.lat,
-                  coord.lng,
-                  refLat,
-                  refLng,
-                  hasLoc,
-                  INITIAL_LIMIT,
-                );
-                setOsmResults(
-                  areaPlaces.sort((a, b) => (a.distance_metres ?? 0) - (b.distance_metres ?? 0)),
-                );
-              } else {
-                setOsmResults([]);
-              }
-            })
-            .catch(() => setOsmResults([]))
-            .finally(() => setOsmLoading(false));
-        }
-      },
-      skip ? 0 : 400,
-    );
+    const trimmed = query.trim();
+    if (!trimmed || trimmed.length < 3) {
+      setDbResults([]);
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+
+    debounceRef.current = setTimeout(async () => {
+      const { lat, lng } = locationRef.current;
+      const searchLat = lat ?? -26.0;
+      const searchLng = lng ?? 28.0;
+
+      const results = await searchListings(trimmed, searchLat, searchLng, 30000, 50);
+      setDbResults(results);
+      setLoading(false);
+    }, 400);
+
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
   }, [query]);
 
-  const handleLoadMore = useCallback(async () => {
-    if (!areaCoords || loadMoreLoading) return;
+  // Merge local and DB results, dedupe by ID
+  const allResults = useMemo(() => {
+    const seen = new Set<string>();
+    const merged: IListingWithDistance[] = [];
 
-    setLoadMoreLoading(true);
-    const newLimit = currentLimit + LOAD_MORE_LIMIT;
-    const { lat, lng } = locationRef.current;
-    const hasLoc = lat !== null && lng !== null;
-    const refLat = lat ?? areaCoords.lat;
-    const refLng = lng ?? areaCoords.lng;
-
-    try {
-      const places = await overpassAreaSearch(
-        areaCoords.lat,
-        areaCoords.lng,
-        refLat,
-        refLng,
-        hasLoc,
-        newLimit,
-      );
-      setOsmResults(places.sort((a, b) => (a.distance_metres ?? 0) - (b.distance_metres ?? 0)));
-      setCurrentLimit(newLimit);
-    } finally {
-      setLoadMoreLoading(false);
+    // Local results first (from context)
+    for (const l of localResults) {
+      if (!seen.has(l.id)) {
+        seen.add(l.id);
+        merged.push(l);
+      }
     }
-  }, [areaCoords, loadMoreLoading, currentLimit]);
 
-  const canLoadMore = areaCoords !== null && osmResults.length >= currentLimit;
-  const showResults = query.trim().length > 0;
+    // Then DB results
+    for (const l of dbResults) {
+      if (!seen.has(l.id)) {
+        seen.add(l.id);
+        merged.push(l);
+      }
+    }
+
+    return merged;
+  }, [localResults, dbResults]);
+
+  const showResults = query.trim().length >= 3;
 
   return (
     <div className="h-full overflow-y-auto bg-nz-bg">
@@ -293,80 +162,32 @@ const Search: React.FC = () => {
 
         <div className="pb-24">
           {!showResults ? (
-            <>
-              <section className="mb-6">
-                <MonoLabel>TRENDING SEARCHES</MonoLabel>
-                <div className="flex flex-wrap gap-2">
-                  {TRENDING_TAGS.map((tag) => (
-                    <Chip key={tag} onClick={() => handleTagPress(tag)}>
-                      {tag}
-                    </Chip>
-                  ))}
-                </div>
-              </section>
-              <section>
-                <MonoLabel>NEIGHBOURHOODS</MonoLabel>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                  {NEIGHBOURHOODS.map((n) => (
-                    <button
-                      key={n}
-                      onClick={() => handleTagPress(n)}
-                      className="bg-nz-surface border border-nz-border rounded-2xl px-4 py-3.5 text-left text-nz-text text-sm font-semibold hover:border-nz-muted/40 transition-all duration-200 active:scale-[0.98]"
-                      type="button"
-                    >
-                      {n}
-                    </button>
-                  ))}
-                </div>
-              </section>
-            </>
+            <TrendingSection onTagPress={handleTagPress} />
           ) : (
             <>
-              {jolResults.length > 0 && (
-                <section className="mb-6">
-                  <MonoLabel>
-                    ON JOL — {jolResults.length} RESULT{jolResults.length !== 1 ? 'S' : ''}
+              {loading && (
+                <div className="space-y-3">
+                  <MonoLabel>SEARCHING…</MonoLabel>
+                  <RowCardSkeleton />
+                  <RowCardSkeleton />
+                  <RowCardSkeleton />
+                </div>
+              )}
+
+              {!loading && allResults.length > 0 && (
+                <section>
+                  <MonoLabel className="mb-2">
+                    {allResults.length} RESULT{allResults.length !== 1 ? 'S' : ''}
                   </MonoLabel>
                   <div className="flex flex-col gap-2.5">
-                    {jolResults.map((l) => (
+                    {allResults.map((l) => (
                       <RowCard key={l.id} listing={l} />
                     ))}
                   </div>
                 </section>
               )}
 
-              {!isEventQuery(query) && (
-                <section>
-                  {osmLoading ? (
-                    <OsmLoadingState />
-                  ) : osmResults.length > 0 ? (
-                    <>
-                      <MonoLabel>NEARBY PLACES — {osmResults.length} FROM OPENSTREETMAP</MonoLabel>
-                      <div className="flex flex-col gap-2.5">
-                        {osmResults.map((p) => (
-                          <OsmCard
-                            key={`${p.osm_type}-${p.osm_id}`}
-                            place={p}
-                            onClick={setSelectedOsmPlace}
-                          />
-                        ))}
-                      </div>
-                      {canLoadMore && (
-                        <button
-                          onClick={handleLoadMore}
-                          disabled={loadMoreLoading}
-                          className="w-full mt-4 py-3 border border-nz-border rounded-2xl text-sm text-nz-muted font-medium hover:text-nz-text hover:border-nz-muted/40 transition-all duration-200 disabled:opacity-50"
-                          type="button"
-                        >
-                          {loadMoreLoading ? 'Loading…' : 'Load more places'}
-                        </button>
-                      )}
-                    </>
-                  ) : null}
-                </section>
-              )}
-
-              {jolResults.length === 0 && osmResults.length === 0 && !osmLoading && (
+              {!loading && allResults.length === 0 && (
                 <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
                   <span className="text-3xl text-nz-muted/40">✦</span>
                   <p className="text-nz-text font-semibold">No results for &quot;{query}&quot;</p>
@@ -377,10 +198,6 @@ const Search: React.FC = () => {
           )}
         </div>
       </div>
-
-      <BottomSheet open={selectedOsmPlace !== null} onClose={() => setSelectedOsmPlace(null)}>
-        {selectedOsmPlace && <OsmPlaceDetail place={selectedOsmPlace} />}
-      </BottomSheet>
     </div>
   );
 };

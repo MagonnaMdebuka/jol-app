@@ -83,16 +83,68 @@ Status markers: `[x]` done · `[-]` in progress · `[ ]` not started
 
 ---
 
+## Audit Quick Wins (2026-06-15) ✅
+
+- [x] Add Open Graph and Twitter Card meta tags
+- [x] Extract MonoLabel to shared component
+- [x] Add ErrorBoundary component wrapping routes
+- [x] Add ConfirmDialog for delete actions in Dashboard
+- [x] Improve color contrast (nz-muted #b09878 → #c4a880 for WCAG AA)
+- [x] Add aria-labels to icon-only buttons
+- [x] Add autoComplete attributes to auth forms
+- [x] Memoize all context provider values
+- [x] Add loading="lazy" to below-fold images
+- [x] .env.example already existed with placeholders
+
+---
+
+## PWA & API Fixes (2026-06-17) ✅
+
+- [x] Add PWA manifest with Jol branding
+- [x] Create proper SVG app icons (192x192, 512x512)
+- [x] Fix Google Places API 400 errors (simplified types, added distance ranking)
+- [x] Optimize OSM Overpass servers (removed CORS-blocked endpoints)
+- [x] Fix "Listing not found" error for OSM/Google listings
+- [x] Add getListingById to ListingsContext for ephemeral listing retrieval
+- [x] Skip Supabase queries for OSM IDs (performance optimization)
+- [x] Add verified badge to FeaturedCard (consistency with other card variants)
+- [x] Unify Search UX — convert OSM places to listings, use RowCard consistently
+- [x] Remove BottomSheet from Search — all results now navigate to detail pages
+
+---
+
 ## Up Next
 
-### Payments — PayFast
+### API & Data Strategy
 
-- [ ] Supabase Edge Function — server-side PayFast request signing
-- [ ] Ticket purchase flow — select ticket type (general / VIP / ladies / gents)
-- [ ] QR code generation on purchase
-- [ ] Orders + tickets table integration (tables already scaffolded)
-- [ ] Webhook handler — confirm payment, activate ticket
-- [ ] My tickets page for users
+- [x] Foursquare Places API integration — fetch venue data during owner setup
+- [x] Foursquare service (`src/services/places.service.ts`) with search + details
+- [x] Place types (`src/types/place.types.ts`) for API response typing
+- [x] Cache Foursquare response in Supabase (name, address, photos, rating) — migration 005
+- [ ] Fallback to Google Places if Foursquare returns no results
+- [x] Remove API dependency for explorer-side — serve only from DB cache
+
+### Database — PostGIS Migration
+
+- [x] Enable PostGIS extension in Supabase (`supabase/migrations/004_postgis.sql`)
+- [x] Add `geog` geography(Point, 4326) column to venues and listings
+- [x] Trigger to auto-sync geog from JSONB location
+- [x] Update `get_nearby_listings` RPC to use `ST_DWithin` with spatial index
+- [ ] Update service layer to handle PostGIS point format (optional — JSONB preserved)
+
+### Cold Start — Data Seeding
+
+- [x] Overpass API seeding script (`scripts/seed-osm.ts`) — bulk import Gauteng venues
+- [x] Migration for OSM columns (`supabase/migrations/003_osm_columns.sql`)
+- [x] Deterministic fallback images (`src/constants/fallbackImages.ts` + `src/utils/fallbackImage.ts`)
+- [x] "Claim Your Venue" CTA on unclaimed listings (`ClaimVenueButton.tsx`)
+- [x] Claim flow — owner links existing listing to their account
+- [ ] Admin seed script — manually curate top 15-20 weekend events
+
+### UGC Photos (Future)
+
+- [ ] Explorer photo uploads to venues (authenticated only)
+- [ ] Photo moderation queue for owners/admins
 
 ### Owner Analytics
 
@@ -108,10 +160,91 @@ Status markers: `[x]` done · `[-]` in progress · `[ ]` not started
 
 ### Discovery improvements
 
-- [ ] "Near me" sort toggle on Feed and Map
-- [ ] Listing share button — native share sheet / copy link
-- [ ] Event RSVP — interested count (no payment, just a tap)
+- [x] "Near me" sort toggle on Feed and Map
+- [x] Listing share button — native share sheet / copy link
+- [x] Event RSVP — interested count (no payment, just a tap)
+- [x] Basic PWA — installability, offline caching (no push notifications yet)
 - [ ] Push notifications — new event near user (PWA)
+
+### DevOps
+
+- [x] CI/CD pipeline — GitHub Actions for lint, build on push/PR
+
+---
+
+## Audit Priority Improvements (2026-06-15)
+
+### Security (Critical)
+
+- [x] Verify Supabase RLS policies — audited, added secure `claim_venue` RPC (migration 008)
+- [x] Add input validation with Zod — validate listing/venue payloads before API calls
+- [x] Strengthen password requirements — minimum 8 chars, mixed case, numbers
+- [ ] Add rate limiting on auth — exponential backoff for failed login attempts
+- [ ] Restrict file uploads — validate file type/size, consider virus scanning
+- [ ] Move sensitive API keys to edge functions — Google/Foursquare keys exposed in bundle
+
+### Code Quality (High)
+
+- [x] Add test coverage — Vitest setup with example tests for geo utils and auth schemas
+- [x] Extract large components — Search.tsx simplified, NewListing.tsx refactored with extracted components
+- [x] Create shared distance utility — `src/utils/geo.ts` haversine function
+- [x] Split osm.service.ts — separated into osm.constants.ts, osm.cache.ts, overpass.service.ts, osm.types.ts
+
+### UI/UX (Medium)
+
+- [x] Add skeleton loaders — replace full-page spinners with content-shaped placeholders
+- [x] Add React.memo to ListingCard — already implemented in all card variants
+- [ ] Improve BottomSheet gestures — use spring physics or gesture library
+- [ ] Add breadcrumbs to owner pages — improve navigation context
+- [ ] Add list virtualization — use react-virtual for 100+ item lists
+- [ ] Add network error states — distinct from empty states with retry button
+
+### Performance (Medium)
+
+- [ ] Add bundle analyzer — vite-bundle-visualizer to identify large dependencies
+- [ ] Dynamic import Leaflet — only load map library on map pages
+- [ ] Implement service worker — PWA offline support with Workbox
+- [ ] Add request deduplication — SWR or React Query for data fetching
+
+---
+
+## Audit Long-Term Improvements
+
+### Testing Infrastructure
+
+- [ ] Set up Vitest configuration
+- [ ] Add unit tests for all service functions
+- [ ] Add component tests with Testing Library
+- [ ] Add E2E tests for critical flows (auth, listing creation, search)
+- [ ] Set up test coverage reporting
+
+### Accessibility (WCAG 2.1 AA)
+
+- [ ] Professional accessibility audit
+- [ ] Add skip links ("Skip to content")
+- [ ] Ensure full keyboard navigation
+- [ ] Add focus management on route changes
+- [ ] Support prefers-reduced-motion
+
+### Monitoring & Observability
+
+- [ ] Integrate error tracking (Sentry or similar)
+- [ ] Add performance monitoring
+- [ ] Set up analytics infrastructure
+- [ ] Implement funnel analysis for conversion tracking
+
+### Design System
+
+- [ ] Create Storybook for component documentation
+- [ ] Document all design tokens
+- [ ] Add component usage guidelines
+- [ ] Create visual regression tests
+
+### Future Architecture
+
+- [ ] Consider Zustand/TanStack Query for complex state
+- [ ] Prepare for internationalization (i18n)
+- [ ] Plan API layer abstraction with centralized caching
 
 ### Content & Growth
 
@@ -135,12 +268,30 @@ Status markers: `[x]` done · `[-]` in progress · `[ ]` not started
 
 ---
 
+## Future / Paused
+
+### Payments — PayFast (paused until discovery validated)
+
+- [ ] Supabase Edge Function — server-side PayFast request signing
+- [ ] Ticket purchase flow — select ticket type (general / VIP / ladies / gents)
+- [ ] QR code generation on purchase
+- [ ] Orders + tickets table integration (tables already scaffolded)
+- [ ] Webhook handler — confirm payment, activate ticket
+- [ ] My tickets page for users
+- [ ] QR scanner in owner dashboard for door validation
+
+---
+
 ## Session Log
 
-| Date       | Work                                                                    |
-| ---------- | ----------------------------------------------------------------------- |
-| 2026-06-01 | Overpass caching — 24hr localStorage cache, server fallback, 2km radius |
-| 2026-06-01 | Added ListingPreviewModal — owners can preview before publishing        |
-| 2026-06-01 | Updated tracker — marked 4 known issues as fixed                        |
-| 2026-05-28 | OSM dual-layer search, mock data removal, GPS race condition fix        |
-| Earlier    | Owner-side overhaul, auth, DB schema, map, feed, search base            |
+| Date       | Work                                                                                            |
+| ---------- | ----------------------------------------------------------------------------------------------- |
+| 2026-06-22 | Remove explorer-side API, Zod validation schemas, skeleton loaders, GitHub Actions CI/CD        |
+| 2026-06-15 | Comprehensive app audit (UI/UX, Security, Code Quality, Performance), implemented 10 quick wins |
+| 2026-06-10 | Foursquare API integration, PostGIS migration, OSM seeding script, fallback images, Claim Venue |
+| 2026-06-08 | Discovery improvements — sort toggle, native share, RSVP, basic PWA                             |
+| 2026-06-01 | Overpass caching — 24hr localStorage cache, server fallback, 2km radius                         |
+| 2026-06-01 | Added ListingPreviewModal — owners can preview before publishing                                |
+| 2026-06-01 | Updated tracker — marked 4 known issues as fixed                                                |
+| 2026-05-28 | OSM dual-layer search, mock data removal, GPS race condition fix                                |
+| Earlier    | Owner-side overhaul, auth, DB schema, map, feed, search base                                    |

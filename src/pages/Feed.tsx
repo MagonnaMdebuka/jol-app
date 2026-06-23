@@ -6,6 +6,8 @@ import { useNearbyListings } from '../hooks/useNearbyListings';
 import MapFilters from '../components/map/MapFilters';
 import { FeaturedCard, TileCard, RowCard } from '../components/listings/ListingCard';
 import Spinner from '../components/ui/Spinner';
+import { FeaturedCardSkeleton, TileCardSkeleton, RowCardSkeleton } from '../components/ui/Skeleton';
+import MonoLabel from '../components/ui/MonoLabel';
 
 const INITIAL_PAGE_SIZE = 12;
 const PAGE_SIZE = 12;
@@ -94,16 +96,7 @@ const Feed: React.FC = () => {
         <div className="pt-8 pb-5">
           <div className="flex items-start justify-between gap-4 mb-4">
             <div>
-              <span
-                className="text-nz-muted block mb-2"
-                style={{
-                  fontFamily: '"JetBrains Mono", monospace',
-                  fontSize: '10px',
-                  letterSpacing: '0.04em',
-                }}
-              >
-                {getDayLabel()}
-              </span>
+              <MonoLabel className="mb-2">{getDayLabel()}</MonoLabel>
               <h1
                 className="leading-[0.88] tracking-[-0.04em]"
                 style={{
@@ -134,9 +127,37 @@ const Feed: React.FC = () => {
         </div>
 
         {loading ? (
-          <div className="flex flex-col items-center justify-center py-32 gap-4">
-            <Spinner size="lg" />
-            <p className="text-nz-muted text-sm">Loading nearby spots…</p>
+          <div className="flex flex-col gap-10">
+            {/* Featured skeleton */}
+            <section>
+              <MonoLabel className="text-nz-accent mb-4">◈ FEATURED · TONIGHT</MonoLabel>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <FeaturedCardSkeleton />
+                <FeaturedCardSkeleton />
+              </div>
+            </section>
+            {/* Going out skeleton */}
+            <section>
+              <div className="flex items-center justify-between mb-4">
+                <div className="h-6 w-28 bg-nz-elevated animate-pulse rounded" />
+              </div>
+              <div className="flex gap-4 overflow-x-auto no-scrollbar pb-2">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <TileCardSkeleton key={i} />
+                ))}
+              </div>
+            </section>
+            {/* Everything nearby skeleton */}
+            <section>
+              <div className="flex items-center justify-between mb-4">
+                <div className="h-6 w-40 bg-nz-elevated animate-pulse rounded" />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <RowCardSkeleton key={i} />
+                ))}
+              </div>
+            </section>
           </div>
         ) : nearbyListings.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-32 gap-4">
@@ -153,18 +174,7 @@ const Feed: React.FC = () => {
             {/* Featured */}
             {featured && (
               <section>
-                <div className="flex items-center gap-2 mb-4">
-                  <span
-                    className="text-nz-accent"
-                    style={{
-                      fontFamily: '"JetBrains Mono", monospace',
-                      fontSize: '10px',
-                      letterSpacing: '0.04em',
-                    }}
-                  >
-                    ◈ FEATURED · TONIGHT
-                  </span>
-                </div>
+                <MonoLabel className="text-nz-accent mb-4">◈ FEATURED · TONIGHT</MonoLabel>
                 {/* Featured: two-column on large screens */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                   <FeaturedCard listing={featured} />
