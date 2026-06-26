@@ -13,7 +13,7 @@ import type { IListingWithDistance } from '../types/listing.types';
 const normalize = (value: string): string => value.trim().toLowerCase();
 
 const Search: React.FC = () => {
-  const { filteredListings: listings, userLat, userLng } = useListings();
+  const { filteredListings: listings, userLat, userLng, addEphemeralListings } = useListings();
   const [query, setQuery] = useState('');
   const [dbResults, setDbResults] = useState<IListingWithDistance[]>([]);
   const [loading, setLoading] = useState(false);
@@ -89,13 +89,18 @@ const Search: React.FC = () => {
 
       const results = await searchListings(trimmed, searchLat, searchLng, 30000, 50);
       setDbResults(results);
+      // Store OSM/Google results in context so ListingDetail can find them
+      const ephemeral = results.filter((r) => r.id.startsWith('osm-') || r.id.startsWith('place-'));
+      if (ephemeral.length > 0) {
+        addEphemeralListings(ephemeral);
+      }
       setLoading(false);
     }, 400);
 
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [query]);
+  }, [query, addEphemeralListings]);
 
   // Merge local and DB results, dedupe by ID
   const allResults = useMemo(() => {

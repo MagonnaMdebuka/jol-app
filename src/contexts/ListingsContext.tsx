@@ -30,6 +30,7 @@ interface IListingsContext {
   userLat: number | null;
   userLng: number | null;
   getListingById: (id: string) => IListingWithDistance | null;
+  addEphemeralListings: (listings: IListingWithDistance[]) => void;
 }
 
 const DEFAULT_FILTERS: IListingFilters = { vibe: 'all', radius: 20000, sortBy: 'nearest' };
@@ -94,6 +95,7 @@ const applyClientFilters = (
 
 const ListingsProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [listings, setListings] = useState<IListingWithDistance[]>([]);
+  const [ephemeralListings, setEphemeralListings] = useState<IListingWithDistance[]>([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFiltersState] = useState<IListingFilters>(DEFAULT_FILTERS);
   const { lat, lng } = useGeolocation();
@@ -123,10 +125,24 @@ const ListingsProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
 
   const getListingById = useCallback(
     (id: string): IListingWithDistance | null => {
-      return listings.find((l) => l.id === id) ?? null;
+      // Check main listings first, then ephemeral (OSM/Google search results)
+      return (
+        listings.find((l) => l.id === id) ?? ephemeralListings.find((l) => l.id === id) ?? null
+      );
     },
-    [listings],
+    [listings, ephemeralListings],
   );
+
+  const addEphemeralListings = useCallback((newListings: IListingWithDistance[]) => {
+    setEphemeralListings((prev) => {
+      const existingIds = new Set(prev.map((l) => l.id));
+      const toAdd = newListings.filter((l) => !existingIds.has(l.id));
+      if (toAdd.length === 0) return prev;
+      // Keep max 100 ephemeral listings to prevent memory bloat
+      const combined = [...toAdd, ...prev];
+      return combined.slice(0, 100);
+    });
+  }, []);
 
   const contextValue = useMemo(
     () => ({
@@ -138,8 +154,19 @@ const ListingsProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
       userLat: lat,
       userLng: lng,
       getListingById,
+      addEphemeralListings,
     }),
-    [listings, filteredListings, filters, setFilters, loading, lat, lng, getListingById],
+    [
+      listings,
+      filteredListings,
+      filters,
+      setFilters,
+      loading,
+      lat,
+      lng,
+      getListingById,
+      addEphemeralListings,
+    ],
   );
 
   return <ListingsContext.Provider value={contextValue}>{children}</ListingsContext.Provider>;
